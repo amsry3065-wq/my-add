@@ -34,9 +34,7 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('بحث', style: GoogleFonts.cairo()),
-      ),
+      appBar: AppBar(title: Text('بحث', style: GoogleFonts.cairo())),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -48,7 +46,9 @@ class _SearchScreenState extends State<SearchScreen> {
                 hintText: 'ابحث عن مطعم، شاليه، إعلان…',
                 hintStyle: GoogleFonts.cairo(),
                 prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               onSubmitted: (_) => _runSearch(),
             ),
@@ -69,7 +69,11 @@ class _SearchScreenState extends State<SearchScreen> {
                 itemCount: _results.length,
                 separatorBuilder: (_, __) => const Divider(height: 1),
                 itemBuilder: (_, i) => ListTile(
-                  title: Text(_results[i], textDirection: TextDirection.rtl, style: GoogleFonts.cairo()),
+                  title: Text(
+                    _results[i],
+                    textDirection: TextDirection.rtl,
+                    style: GoogleFonts.cairo(),
+                  ),
                   leading: const Icon(Icons.search),
                 ),
               ),

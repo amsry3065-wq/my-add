@@ -15,6 +15,10 @@ class RegistrationScreen extends StatefulWidget {
 }
 
 class _RegistrationScreenState extends State<RegistrationScreen> {
+  // ألوان TikTok (pastel) لتوحيد الثيم
+  static const Color _pink = Color(0xFFFE2C55);
+  static const Color _cyan = Color(0xFF06B6D4); // أغمق شوي من السماوي
+
   final _formKey = GlobalKey<FormState>();
 
   // عام
@@ -112,9 +116,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   Future<void> _onRegister() async {
     FocusScope.of(context).unfocus();
 
-    // فحوصات سريعة
     if (_userType == UserType.owner) {
-      if (_chaletName.text.trim().isEmpty || _chaletAddress.text.trim().length < 5) {
+      if (_chaletName.text.trim().isEmpty ||
+          _chaletAddress.text.trim().length < 5) {
         _toast('يرجى إدخال اسم وعنوان الشاليه بشكل صحيح');
         return;
       }
@@ -129,26 +133,28 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
     setState(() => _loading = true);
     try {
-      // خلي رسائل البريد بالعربي
       await FirebaseAuth.instance.setLanguageCode('ar');
 
-      // فحص مسبق: هل الإيميل مستعمل بأي مزوّد (حتى Google)؟
-      final methods = await FirebaseAuth.instance.fetchSignInMethodsForEmail(email);
+      // فحص مسبق لأي مزوّد
+      final methods = await FirebaseAuth.instance.fetchSignInMethodsForEmail(
+        email,
+      );
       if (methods.isNotEmpty) {
-        _toast('هذا البريد مستخدم من قبل. جرّب تسجيل الدخول أو استعادة كلمة المرور.');
+        _toast(
+          'هذا البريد مستخدم من قبل. جرّب تسجيل الدخول أو استعادة كلمة المرور.',
+        );
         return;
       }
 
-      // إنشاء الحساب
       final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: email,
         password: _password.text,
       );
 
-      // تحديث اسم العرض (اختياري)
-      await cred.user?.updateDisplayName('${_first.text.trim()} ${_last.text.trim()}');
+      await cred.user?.updateDisplayName(
+        '${_first.text.trim()} ${_last.text.trim()}',
+      );
 
-      // إنشاء وثيقة المستخدم في Firestore
       await _createUserDoc(
         user: cred.user!,
         first: _first.text.trim(),
@@ -156,26 +162,29 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         email: email,
         phone: _phone.text.trim(),
         type: _userType,
-        chaletName: _userType == UserType.owner ? _chaletName.text.trim() : null,
-        chaletAddress: _userType == UserType.owner ? _chaletAddress.text.trim() : null,
+        chaletName: _userType == UserType.owner
+            ? _chaletName.text.trim()
+            : null,
+        chaletAddress: _userType == UserType.owner
+            ? _chaletAddress.text.trim()
+            : null,
       );
 
-      // ===== إرسال التحقق (بسيطة ومضمونة على الموبايل والويب) =====
       await cred.user!.sendEmailVerification();
 
       _toast('تم إنشاء الحساب — تفقد بريدك لتأكيده');
       if (!mounted) return;
 
-      // الذهاب لشاشة التحقق
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const VerifyEmailScreen()),
       );
     } on FirebaseAuthException catch (e) {
-      // في حال كنت سابقًا تستخدم ActionCodeSettings ممكن تطلع أخطاء روابط
       if (e.code == 'invalid-continue-uri' ||
           e.code == 'missing-android-pkg-name' ||
           e.code == 'unauthorized-continue-uri') {
-        _toast('تم إنشاء الحساب لكن فشل إرسال التحقق بإعدادات الرابط. أعد المحاولة بدون إعدادات مخصّصة.');
+        _toast(
+          'تم إنشاء الحساب لكن فشل إرسال التحقق بإعدادات الرابط. أعد المحاولة بدون إعدادات مخصّصة.',
+        );
       } else {
         _toast(_mapAuthError(e));
       }
@@ -206,20 +215,29 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           accessToken: gAuth.accessToken,
           idToken: gAuth.idToken,
         );
-        credential = await FirebaseAuth.instance.signInWithCredential(googleCred);
+        credential = await FirebaseAuth.instance.signInWithCredential(
+          googleCred,
+        );
       }
 
       final user = credential.user!;
-      // إنشاء وثيقة للمرة الأولى فقط
       await _createUserDoc(
         user: user,
-        first: _first.text.trim().isEmpty ? (user.displayName?.split(' ').first ?? '') : _first.text.trim(),
-        last: _last.text.trim().isEmpty ? (user.displayName?.split(' ').skip(1).join(' ') ?? '') : _last.text.trim(),
+        first: _first.text.trim().isEmpty
+            ? (user.displayName?.split(' ').first ?? '')
+            : _first.text.trim(),
+        last: _last.text.trim().isEmpty
+            ? (user.displayName?.split(' ').skip(1).join(' ') ?? '')
+            : _last.text.trim(),
         email: (user.email ?? _email.text.trim()).toLowerCase(),
         phone: _phone.text.trim(),
         type: _userType,
-        chaletName: _userType == UserType.owner ? _chaletName.text.trim() : null,
-        chaletAddress: _userType == UserType.owner ? _chaletAddress.text.trim() : null,
+        chaletName: _userType == UserType.owner
+            ? _chaletName.text.trim()
+            : null,
+        chaletAddress: _userType == UserType.owner
+            ? _chaletAddress.text.trim()
+            : null,
       );
 
       _toast('تم الدخول عبر Google ✅');
@@ -227,7 +245,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     } on FirebaseAuthException catch (e) {
       _toast(_mapAuthError(e));
     } catch (e) {
-      _toast('فشل تسجيل Google. تأكد من إضافة SHA-1/256 في Firebase لمشروع Android.');
+      _toast(
+        'فشل تسجيل Google. تأكد من إضافة SHA-1/256 في Firebase لمشروع Android.',
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -240,243 +260,502 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     return Directionality(
       textDirection: TextDirection.rtl, // عربي RTL
       child: Scaffold(
-        appBar: AppBar(
-          title: const Align(
-            alignment: Alignment.centerRight,
-            child: Text('سجّل الآن'),
-          ),
-        ),
-        body: SafeArea(
-          child: Stack(
-            children: [
-              SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // نوع الحساب
-                      const Text('نوع الحساب', style: TextStyle(fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        children: [
-                          ChoiceChip(
-                            label: const Text('مستخدم عادي'),
-                            selected: _userType == UserType.user,
-                            onSelected: (_) => setState(() => _userType = UserType.user),
-                          ),
-                          ChoiceChip(
-                            label: const Text('صاحب شاليه'),
-                            selected: _userType == UserType.owner,
-                            onSelected: (_) => setState(() => _userType = UserType.owner),
-                          ),
+        body: Stack(
+          children: [
+            // خلفية متدرجة ناعمة (مطابقة للّوجين/السلاش)
+            Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFFFDFDFE), Color(0xFFF5FBFC)],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
+            ),
+            // تموجات شفافة علوية وسفلية
+            Positioned.fill(
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: ClipPath(
+                  clipper: _TopWaveClipper(),
+                  child: Container(
+                    height: 210,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          _cyan.withOpacity(.12),
+                          _cyan.withOpacity(.04),
                         ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-                      const SizedBox(height: 16),
-
-                      // الاسم الأول/الثاني
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: _first,
-                              decoration: const InputDecoration(
-                                labelText: 'الاسم الأول',
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.person),
-                              ),
-                              validator: (v) =>
-                              (v == null || v.trim().isEmpty) ? 'أدخل الاسم الأول' : null,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: TextFormField(
-                              controller: _last,
-                              decoration: const InputDecoration(
-                                labelText: 'اسم العائلة',
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.person_outline),
-                              ),
-                              validator: (v) =>
-                              (v == null || v.trim().isEmpty) ? 'أدخل اسم العائلة' : null,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-
-                      // البريد الإلكتروني
-                      TextFormField(
-                        controller: _email,
-                        decoration: const InputDecoration(
-                          labelText: 'البريد الإلكتروني',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.email),
-                        ),
-                        keyboardType: TextInputType.emailAddress,
-                        validator: (v) {
-                          if (v == null || v.trim().isEmpty) return 'أدخل بريدك الإلكتروني';
-                          final ok = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v.trim());
-                          return ok ? null : 'البريد الإلكتروني غير صالح';
-                        },
-                      ),
-                      const SizedBox(height: 12),
-
-                      // رقم الهاتف
-                      TextFormField(
-                        controller: _phone,
-                        decoration: const InputDecoration(
-                          labelText: 'رقم الهاتف',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.phone),
-                        ),
-                        keyboardType: TextInputType.phone,
-                        validator: (v) {
-                          final s = v?.trim() ?? '';
-                          return s.isEmpty || s.length >= 7 ? null : 'أدخل رقمًا صحيحًا';
-                        },
-                      ),
-                      const SizedBox(height: 12),
-
-                      // حقول إضافية لصاحب الشاليه
-                      if (_userType == UserType.owner) ...[
-                        TextFormField(
-                          controller: _chaletName,
-                          decoration: const InputDecoration(
-                            labelText: 'اسم الشاليه',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.home_work),
-                          ),
-                          validator: (v) =>
-                          (v == null || v.trim().isEmpty) ? 'أدخل اسم الشاليه' : null,
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _chaletAddress,
-                          decoration: const InputDecoration(
-                            labelText: 'عنوان الشاليه',
-                            hintText: 'المدينة / المنطقة / الشارع',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.location_on),
-                          ),
-                          validator: (v) =>
-                          (v == null || v.trim().length < 5) ? 'أدخل عنوانًا مفصّلًا' : null,
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-
-                      // كلمة المرور
-                      TextFormField(
-                        controller: _password,
-                        obscureText: _obscurePass,
-                        decoration: InputDecoration(
-                          labelText: 'كلمة المرور',
-                          border: const OutlineInputBorder(),
-                          prefixIcon: const Icon(Icons.lock),
-                          suffixIcon: IconButton(
-                            icon: Icon(_obscurePass ? Icons.visibility : Icons.visibility_off),
-                            onPressed: () => setState(() => _obscurePass = !_obscurePass),
-                          ),
-                        ),
-                        validator: (v) =>
-                        (v != null && v.length >= 6) ? null : 'الحد الأدنى 6 أحرف',
-                      ),
-                      const SizedBox(height: 12),
-
-                      // تأكيد كلمة المرور
-                      TextFormField(
-                        controller: _confirm,
-                        obscureText: _obscureConfirm,
-                        decoration: InputDecoration(
-                          labelText: 'تأكيد كلمة المرور',
-                          border: const OutlineInputBorder(),
-                          prefixIcon: const Icon(Icons.lock_outline),
-                          suffixIcon: IconButton(
-                            icon: Icon(_obscureConfirm ? Icons.visibility : Icons.visibility_off),
-                            onPressed: () =>
-                                setState(() => _obscureConfirm = !_obscureConfirm),
-                          ),
-                        ),
-                        validator: (v) => (v == _password.text) ? null : 'كلمتا المرور غير متطابقتين',
-                      ),
-                      const SizedBox(height: 8),
-
-                      // الموافقة على الشروط
-                      Row(
-                        children: [
-                          Checkbox(
-                            value: _acceptTerms,
-                            onChanged: (v) => setState(() => _acceptTerms = v ?? false),
-                          ),
-                          const Expanded(
-                            child: Text('أوافق على الشروط والأحكام'),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-
-                      // زر التسجيل
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.deepPurple,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          onPressed: _loading ? null : _onRegister,
-                          child: _loading
-                              ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                          )
-                              : const Text('سجّل الآن', style: TextStyle(color: Colors.white)),
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-                      const Divider(),
-                      const SizedBox(height: 12),
-
-                      // التسجيل عبر جوجل
-                      const Center(child: Text('أو أنشئ حسابًا بواسطة')),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: OutlinedButton.icon(
-                          onPressed: _loading ? null : _onGoogle,
-                          icon: const Icon(Icons.g_mobiledata, size: 28),
-                          label: const Text('Google'),
-                          style: OutlinedButton.styleFrom(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            side: const BorderSide(color: Colors.deepPurple),
-                            foregroundColor: Colors.deepPurple,
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
-
-              if (_loading)
-                Container(
-                  color: Colors.black.withOpacity(0.08),
-                  child: const Center(child: CircularProgressIndicator()),
+            ),
+            Positioned.fill(
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: ClipPath(
+                  clipper: _BottomWaveClipper(),
+                  child: Container(
+                    height: 250,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          _pink.withOpacity(.10),
+                          _pink.withOpacity(.03),
+                        ],
+                        begin: Alignment.topRight,
+                        end: Alignment.bottomLeft,
+                      ),
+                    ),
+                  ),
                 ),
-            ],
-          ),
+              ),
+            ),
+            // توهجات خفيفة للعمق
+            Positioned(
+              top: -90,
+              right: -70,
+              child: _softBlob(_pink.withOpacity(.06), 220),
+            ),
+            Positioned(
+              bottom: -80,
+              left: -80,
+              child: _softBlob(_cyan.withOpacity(.07), 260),
+            ),
+
+            SafeArea(
+              child: Column(
+                children: [
+                  // AppBar يدوي بسيط (يمين: رجوع — وسط: العنوان)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(
+                            Icons.arrow_back_ios_new,
+                            color: Colors.black87,
+                          ),
+                          onPressed: () => Navigator.pop(context),
+                          tooltip: 'رجوع',
+                        ),
+                        const Spacer(),
+                        const Text(
+                          'سجّل الآن',
+                          style: TextStyle(
+                            color: Colors.black87,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Spacer(),
+                        const SizedBox(width: 48),
+                      ],
+                    ),
+                  ),
+
+                  // المحتوى — منزّل شوي للوسط (paddingVertical أكبر)
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 24,
+                      ),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const SizedBox(height: 8),
+
+                            // نوع الحساب (ChoiceChips)
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: Text('نوع الحساب', style: _labelBold()),
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              children: [
+                                _choiceChip(
+                                  label: 'مستخدم عادي',
+                                  selected: _userType == UserType.user,
+                                  onTap: () =>
+                                      setState(() => _userType = UserType.user),
+                                ),
+                                _choiceChip(
+                                  label: 'صاحب شاليه',
+                                  selected: _userType == UserType.owner,
+                                  onTap: () => setState(
+                                    () => _userType = UserType.owner,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+
+                            // الاسم الأول/الثاني
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _first,
+                                    decoration: _input(
+                                      'الاسم الأول',
+                                      const Icon(Icons.person),
+                                    ),
+                                    validator: (v) =>
+                                        (v == null || v.trim().isEmpty)
+                                        ? 'أدخل الاسم الأول'
+                                        : null,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _last,
+                                    decoration: _input(
+                                      'اسم العائلة',
+                                      const Icon(Icons.person_outline),
+                                    ),
+                                    validator: (v) =>
+                                        (v == null || v.trim().isEmpty)
+                                        ? 'أدخل اسم العائلة'
+                                        : null,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+
+                            // البريد الإلكتروني
+                            TextFormField(
+                              controller: _email,
+                              decoration: _input(
+                                'البريد الإلكتروني',
+                                const Icon(Icons.email),
+                              ),
+                              keyboardType: TextInputType.emailAddress,
+                              validator: (v) {
+                                if (v == null || v.trim().isEmpty)
+                                  return 'أدخل بريدك الإلكتروني';
+                                final ok = RegExp(
+                                  r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                                ).hasMatch(v.trim());
+                                return ok ? null : 'البريد الإلكتروني غير صالح';
+                              },
+                            ),
+                            const SizedBox(height: 12),
+
+                            // رقم الهاتف
+                            TextFormField(
+                              controller: _phone,
+                              decoration: _input(
+                                'رقم الهاتف',
+                                const Icon(Icons.phone),
+                              ),
+                              keyboardType: TextInputType.phone,
+                              validator: (v) {
+                                final s = v?.trim() ?? '';
+                                return s.isEmpty || s.length >= 7
+                                    ? null
+                                    : 'أدخل رقمًا صحيحًا';
+                              },
+                            ),
+                            const SizedBox(height: 12),
+
+                            // حقول إضافية لصاحب الشاليه
+                            if (_userType == UserType.owner) ...[
+                              TextFormField(
+                                controller: _chaletName,
+                                decoration: _input(
+                                  'اسم الشاليه',
+                                  const Icon(Icons.home_work),
+                                ),
+                                validator: (v) =>
+                                    (v == null || v.trim().isEmpty)
+                                    ? 'أدخل اسم الشاليه'
+                                    : null,
+                              ),
+                              const SizedBox(height: 12),
+                              TextFormField(
+                                controller: _chaletAddress,
+                                decoration: _input(
+                                  'عنوان الشاليه',
+                                  const Icon(Icons.location_on),
+                                  hint: 'المدينة / المنطقة / الشارع',
+                                ),
+                                validator: (v) =>
+                                    (v == null || v.trim().length < 5)
+                                    ? 'أدخل عنوانًا مفصّلًا'
+                                    : null,
+                              ),
+                              const SizedBox(height: 12),
+                            ],
+
+                            // كلمة المرور
+                            TextFormField(
+                              controller: _password,
+                              obscureText: _obscurePass,
+                              decoration: _input(
+                                'كلمة المرور',
+                                const Icon(Icons.lock),
+                                suffix: IconButton(
+                                  icon: Icon(
+                                    _obscurePass
+                                        ? Icons.visibility
+                                        : Icons.visibility_off,
+                                  ),
+                                  onPressed: () => setState(
+                                    () => _obscurePass = !_obscurePass,
+                                  ),
+                                ),
+                              ),
+                              validator: (v) => (v != null && v.length >= 6)
+                                  ? null
+                                  : 'الحد الأدنى 6 أحرف',
+                            ),
+                            const SizedBox(height: 12),
+
+                            // تأكيد كلمة المرور
+                            TextFormField(
+                              controller: _confirm,
+                              obscureText: _obscureConfirm,
+                              decoration: _input(
+                                'تأكيد كلمة المرور',
+                                const Icon(Icons.lock_outline),
+                                suffix: IconButton(
+                                  icon: Icon(
+                                    _obscureConfirm
+                                        ? Icons.visibility
+                                        : Icons.visibility_off,
+                                  ),
+                                  onPressed: () => setState(
+                                    () => _obscureConfirm = !_obscureConfirm,
+                                  ),
+                                ),
+                              ),
+                              validator: (v) => (v == _password.text)
+                                  ? null
+                                  : 'كلمتا المرور غير متطابقتين',
+                            ),
+                            const SizedBox(height: 8),
+
+                            // الموافقة على الشروط
+                            Row(
+                              children: [
+                                Checkbox(
+                                  value: _acceptTerms,
+                                  onChanged: (v) =>
+                                      setState(() => _acceptTerms = v ?? false),
+                                  activeColor: _pink,
+                                ),
+                                const Expanded(
+                                  child: Text('أوافق على الشروط والأحكام'),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+
+                            // زر التسجيل (وردي موحّد مع اللوجين/ويلكم)
+                            SizedBox(
+                              width: double.infinity,
+                              height: 50,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: _pink,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  elevation: 0,
+                                ),
+                                onPressed: _loading ? null : _onRegister,
+                                child: _loading
+                                    ? const SizedBox(
+                                        width: 22,
+                                        height: 22,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : const Text(
+                                        'سجّل الآن',
+                                        style: TextStyle(color: Colors.white),
+                                      ),
+                              ),
+                            ),
+
+                            const SizedBox(height: 16),
+                            const Divider(),
+                            const SizedBox(height: 12),
+
+                            // التسجيل عبر جوجل (Outlined Cyan)
+                            const Center(child: Text('أو أنشئ حسابًا بواسطة')),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 50,
+                              child: OutlinedButton.icon(
+                                onPressed: _loading ? null : _onGoogle,
+                                icon: const Icon(Icons.g_mobiledata, size: 28),
+                                label: const Text('Google'),
+                                style: OutlinedButton.styleFrom(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  side: const BorderSide(
+                                    color: _cyan,
+                                    width: 1.4,
+                                  ),
+                                  foregroundColor: _cyan,
+                                  backgroundColor: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+                ],
+              ),
+            ),
+
+            if (_loading)
+              Container(
+                color: Colors.black.withOpacity(0.08),
+                child: const Center(child: CircularProgressIndicator()),
+              ),
+          ],
         ),
       ),
     );
   }
+
+  // -------------------- أدوات تصميم موحدة --------------------
+  TextStyle _labelBold() => const TextStyle(fontWeight: FontWeight.w700);
+
+  InputDecoration _input(
+    String label,
+    Icon prefix, {
+    Widget? suffix,
+    String? hint,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      prefixIcon: prefix,
+      suffixIcon: suffix,
+      filled: true,
+      fillColor: Colors.white,
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: _cyan, width: 1.4),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.black.withOpacity(.12)),
+      ),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+    );
+  }
+
+  Widget _choiceChip({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return ChoiceChip(
+      label: Text(
+        label,
+        style: TextStyle(
+          color: selected ? Colors.white : Colors.black87,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      selected: selected,
+      onSelected: (_) => onTap(),
+      selectedColor: _pink,
+      side: BorderSide(color: selected ? _pink : Colors.black.withOpacity(.12)),
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    );
+  }
+
+  static Widget _softBlob(Color c, double size) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        boxShadow: [BoxShadow(color: c, blurRadius: 90, spreadRadius: 50)],
+      ),
+    );
+  }
+}
+
+// Clippers للتموّجات (نفس المستخدمة في الشاشات الأخرى)
+class _TopWaveClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final p = Path();
+    p.lineTo(0, size.height * .60);
+    p.quadraticBezierTo(
+      size.width * .25,
+      size.height * .40,
+      size.width * .50,
+      size.height * .55,
+    );
+    p.quadraticBezierTo(
+      size.width * .80,
+      size.height * .75,
+      size.width,
+      size.height * .50,
+    );
+    p.lineTo(size.width, 0);
+    p.close();
+    return p;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
+}
+
+class _BottomWaveClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final p = Path();
+    p.moveTo(0, 0);
+    p.quadraticBezierTo(
+      size.width * .20,
+      size.height * .35,
+      size.width * .48,
+      size.height * .28,
+    );
+    p.quadraticBezierTo(
+      size.width * .78,
+      size.height * .20,
+      size.width,
+      size.height * .50,
+    );
+    p.lineTo(size.width, size.height);
+    p.lineTo(0, size.height);
+    p.close();
+    return p;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }

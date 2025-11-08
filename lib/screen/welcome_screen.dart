@@ -1,177 +1,151 @@
 // lib/screen/welcome_screen.dart
-import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../theme/brand.dart';
-import '../widget/buttons.dart';
-import 'auth/login_screen.dart';
-import 'auth/registration_screen.dart';
-import 'home_screen.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
 
+  // TikTok Pastel (Soft) Palette
+  static const Color _pink = Color(0xFFFE2C55);
+  static const Color _cyan = Color(0xFF25F4EE);
+
   @override
   Widget build(BuildContext context) {
-    final w = MediaQuery.of(context).size.width;
-    final cardW = w > 440 ? 440.0 : w - 48;
+    final size = MediaQuery.of(context).size;
+    final contentW = size.width >= 420 ? 420.0 : size.width - 40;
 
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: Brand.black,
         body: Stack(
           children: [
-            // خلفية خفيفة (توهج سيان/فوشيا)
-            Positioned(
-              top: -80, left: -40,
-              child: _glow(const Color(0x5525F4EE), 240),
-            ),
-            Positioned(
-              bottom: -60, right: -30,
-              child: _glow(const Color(0x55FE2C55), 260),
-            ),
-
-            // المحتوى
-            Center(
-              child: Container(
-                width: cardW,
-                constraints: const BoxConstraints(minHeight: 320),
-                decoration: BoxDecoration(
-                  color: Brand.surface.withOpacity(.66),
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: Colors.white.withOpacity(.06)),
-                  boxShadow: const [
-                    BoxShadow(blurRadius: 28, color: Colors.black54, offset: Offset(0, 10)),
-                  ],
+            // خلفية فاتحة جدًا مع لمسة وردي/سيان باستيلي ناعم
+            Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFFFDFDFE), Color(0xFFF5FBFC)],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(22),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // رأس: لوجو + عنوان
-                          Row(
-                            children: [
-                              _Logo(),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: ShaderMask(
-                                  shaderCallback: (r) => Brand.gradient.createShader(r),
-                                  child: Text(
-                                    'اعلاناتي',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: GoogleFonts.cairo(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.w800,
-                                      color: Colors.white,
-                                      letterSpacing: .2,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
+              ),
+            ),
+            // بقع توهج ناعمة جدًا (pastel)
+            Positioned(
+              top: -120,
+              right: -90,
+              child: _softBlob(_pink.withOpacity(.07), 260),
+            ),
+            Positioned(
+              bottom: -120,
+              left: -100,
+              child: _softBlob(_cyan.withOpacity(.08), 300),
+            ),
+
+            SafeArea(
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(vertical: 28),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: contentW),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // العنوان بالنص (Gradient لطيف جدًا)
+                        _GradientTitle(
+                          text: 'اعلاناتي',
+                          gradient: const LinearGradient(
+                            colors: [_pink, _cyan],
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
                           ),
-                          const SizedBox(height: 8),
-
-                          // سطر ترحيبي جديد
-                          Text(
-                            'مرحبًا بك في تطبيق إعلاناتي — أول تطبيق شاليهات في فلسطين',
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.cairo(
-                              color: Colors.white,
-                              fontSize: 14.5,
-                              fontWeight: FontWeight.w600,
-                              height: 1.3,
-                            ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'أهلا بك في تطبيق إعلاناتي — أول تطبيق شاليهات في فلسطين',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.cairo(
+                            fontSize: 15,
+                            color: const Color(0xFF1F2937).withOpacity(.75),
+                            height: 1.4,
+                            fontWeight: FontWeight.w600,
                           ),
-                          const SizedBox(height: 6),
+                        ),
 
-                          // توجيه بسيط
-                          Text(
-                            'اختر طريقة المتابعة',
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.cairo(
-                              color: Colors.white70,
-                              fontSize: 13.5,
-                              height: 1.2,
-                            ),
-                          ),
-                          const SizedBox(height: 18),
+                        const SizedBox(height: 28),
 
-                          // أزرار رئيسية
-                          FilledGradientButton(
-                            label: 'تسجيل الدخول',
-                            icon: Icons.login_rounded,
-                            onTap: () async {
-                              HapticFeedback.selectionClick();
-                              await Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => const LoginScreen()),
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 10),
-
-                          FilledGradientButton(
-                            label: 'إنشاء حساب جديد',
-                            icon: Icons.person_add_alt_1_rounded,
-                            textColor: Colors.black,
-                            gradient: const LinearGradient(
-                              colors: [Brand.cyan, Color(0xFF8AF7FF)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            onTap: () async {
-                              HapticFeedback.selectionClick();
-                              await Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => const RegistrationScreen()),
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 14),
-
-                          // (تم حذف أزرار Google و Apple بناءً على طلبك)
-
-                          OutlineNeonButton(
-                            label: 'متابعة كضيف',
-                            icon: Icons.visibility_rounded,
-                            onTap: () {
-                              HapticFeedback.selectionClick();
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(builder: (_) => const HomeScreen()),
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 6),
-
-                          TextButton(
-                            onPressed: () {
-                              HapticFeedback.selectionClick();
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(builder: (_) => const HomeScreen()),
-                              );
-                            },
-                            child: Text(
-                              'تخطي الآن',
+                        // زر أساسي: تسجيل الدخول (واضح وبسيط)
+                        SizedBox(
+                          height: 52,
+                          child: ElevatedButton.icon(
+                            onPressed: () =>
+                                Navigator.pushNamed(context, '/login'),
+                            icon: const Icon(Icons.login_rounded),
+                            label: Text(
+                              'تسجيل الدخول',
                               style: GoogleFonts.cairo(
-                                color: Colors.white70,
-                                decoration: TextDecoration.underline,
-                                fontSize: 14,
+                                fontSize: 16.5,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              elevation: 0,
+                              backgroundColor: _pink, // نبرة وردي ناعمة واضحة
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
                               ),
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        // زر ثانوي: إنشاء حساب جديد (Outlined بسيان واضح)
+                        SizedBox(
+                          height: 52,
+                          child: OutlinedButton.icon(
+                            onPressed: () =>
+                                Navigator.pushNamed(context, '/register'),
+                            icon: Icon(
+                              Icons.person_add_alt_1_rounded,
+                              color: _cyan,
+                            ),
+                            label: Text(
+                              'إنشاء حساب جديد',
+                              style: GoogleFonts.cairo(
+                                fontSize: 16.5,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFF0F172A),
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              side: BorderSide(color: _cyan, width: 1.4),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // متابعة كضيف (نصي بسيط)
+                        TextButton(
+                          onPressed: () =>
+                              Navigator.pushReplacementNamed(context, '/home'),
+                          child: Text(
+                            'متابعة كضيف',
+                            style: GoogleFonts.cairo(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF111827).withOpacity(.75),
+                            ),
+                          ),
+                        ),
+
+                        // ملاحظة: لا صورة في الأعلى، ولا "تخطي الآن" — حسب طلبك
+                      ],
                     ),
                   ),
                 ),
@@ -183,44 +157,39 @@ class WelcomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _glow(Color c, double size) {
+  static Widget _softBlob(Color c, double size) {
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(color: c, blurRadius: 80, spreadRadius: 40),
-        ],
+        boxShadow: [BoxShadow(color: c, blurRadius: 90, spreadRadius: 50)],
       ),
     );
   }
 }
 
-class _Logo extends StatelessWidget {
+// ————— Widgets المساعدة —————
+
+class _GradientTitle extends StatelessWidget {
+  final String text;
+  final Gradient gradient;
+  const _GradientTitle({required this.text, required this.gradient});
+
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        // توهج خلفي
-        Container(
-          width: 46, height: 46,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(color: Brand.red.withOpacity(.35), blurRadius: 20, spreadRadius: 2),
-              BoxShadow(color: Brand.cyan.withOpacity(.35), blurRadius: 20, spreadRadius: 2, offset: const Offset(4, 2)),
-            ],
-          ),
+    return ShaderMask(
+      shaderCallback: (r) => gradient.createShader(r),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: GoogleFonts.cairo(
+          fontSize: 36,
+          fontWeight: FontWeight.w900,
+          color: Colors.white, // يتلوّن بالـ Shader
+          letterSpacing: .2,
         ),
-        // دائرة متدرجة + أيقونة
-        Container(
-          width: 46, height: 46,
-          decoration: const BoxDecoration(shape: BoxShape.circle, gradient: Brand.gradient),
-          child: const Icon(Icons.play_arrow_rounded, color: Colors.white),
-        ),
-      ],
+      ),
     );
   }
 }

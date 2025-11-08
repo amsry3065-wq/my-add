@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:myadds/screen/splash_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
@@ -21,8 +22,12 @@ class Comment {
   int likes;
   bool liked;
   List<Comment> replies;
-  Comment(this.text, {this.likes = 0, this.liked = false, List<Comment>? replies})
-      : replies = replies ?? [];
+  Comment(
+    this.text, {
+    this.likes = 0,
+    this.liked = false,
+    List<Comment>? replies,
+  }) : replies = replies ?? [];
 }
 
 class _HomeScreenState extends State<HomeScreen> {
@@ -48,11 +53,10 @@ class _HomeScreenState extends State<HomeScreen> {
   final Map<int, List<Comment>> _comments = {};
 
   void _ensureSeedComments(int index) {
-    _comments.putIfAbsent(index, () => [
-      Comment('كم السعر؟'),
-      Comment('كم السعر؟'),
-      Comment('كم السعر؟'),
-    ]);
+    _comments.putIfAbsent(
+      index,
+      () => [Comment('كم السعر؟'), Comment('كم السعر؟'), Comment('كم السعر؟')],
+    );
   }
 
   void _onDoubleTapLike(int index) {
@@ -81,16 +85,22 @@ class _HomeScreenState extends State<HomeScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 40, height: 4,
+              width: 40,
+              height: 4,
               decoration: BoxDecoration(
                 color: Colors.grey[600],
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
             const SizedBox(height: 16),
-            Text('التواصل مع المعلن',
-                style: GoogleFonts.cairo(
-                    color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(
+              'التواصل مع المعلن',
+              style: GoogleFonts.cairo(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 20),
             _contactButton(
               icon: FontAwesomeIcons.whatsapp,
@@ -144,8 +154,10 @@ class _HomeScreenState extends State<HomeScreen> {
             Icon(icon, color: color, size: 28),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(text,
-                  style: GoogleFonts.cairo(color: Colors.white, fontSize: 16)),
+              child: Text(
+                text,
+                style: GoogleFonts.cairo(color: Colors.white, fontSize: 16),
+              ),
             ),
           ],
         ),
@@ -191,7 +203,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
             void addReply(int i, String text) {
               if (text.trim().isEmpty) return;
-              setState(() => _comments[index]![i].replies.add(Comment(text.trim())));
+              setState(
+                () => _comments[index]![i].replies.add(Comment(text.trim())),
+              );
               setSheetState(() {});
             }
 
@@ -203,19 +217,22 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     const SizedBox(height: 8),
                     Container(
-                      width: 36, height: 4,
+                      width: 36,
+                      height: 4,
                       decoration: BoxDecoration(
                         color: Colors.black12,
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Text('التعليقات',
-                        style: GoogleFonts.cairo(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black87,
-                        )),
+                    Text(
+                      'التعليقات',
+                      style: GoogleFonts.cairo(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black87,
+                      ),
+                    ),
                     const SizedBox(height: 4),
                     Expanded(
                       child: ListView.separated(
@@ -247,7 +264,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                       child: Text(
                                         comment.text,
                                         style: GoogleFonts.cairo(
-                                            fontSize: 14, color: Colors.black87),
+                                          fontSize: 14,
+                                          color: Colors.black87,
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -272,8 +291,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                           Text(
                                             '${comment.likes}',
                                             style: GoogleFonts.cairo(
-                                                fontSize: 13,
-                                                color: Colors.black54),
+                                              fontSize: 13,
+                                              color: Colors.black54,
+                                            ),
                                           ),
                                         ],
                                       ),
@@ -294,9 +314,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                             ? 'إخفاء الردود'
                                             : 'رد',
                                         style: GoogleFonts.cairo(
-                                            fontSize: 13,
-                                            color: Colors.black87,
-                                            fontWeight: FontWeight.w700),
+                                          fontSize: 13,
+                                          color: Colors.black87,
+                                          fontWeight: FontWeight.w700,
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -308,25 +329,30 @@ class _HomeScreenState extends State<HomeScreen> {
                                       child: Column(
                                         children: List.generate(
                                           comment.replies.length,
-                                              (r) {
+                                          (r) {
                                             final reply = comment.replies[r];
                                             return Padding(
-                                              padding: const EdgeInsets.only(bottom: 6.0),
+                                              padding: const EdgeInsets.only(
+                                                bottom: 6.0,
+                                              ),
                                               child: Row(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
                                                 children: [
                                                   const SizedBox(width: 24),
                                                   const CircleAvatar(
                                                     radius: 12,
-                                                    backgroundColor: Colors.black12,
+                                                    backgroundColor:
+                                                        Colors.black12,
                                                   ),
                                                   const SizedBox(width: 8),
                                                   Expanded(
                                                     child: Text(
                                                       reply.text,
                                                       style: GoogleFonts.cairo(
-                                                          fontSize: 13,
-                                                          color: Colors.black87),
+                                                        fontSize: 13,
+                                                        color: Colors.black87,
+                                                      ),
                                                     ),
                                                   ),
                                                 ],
@@ -345,14 +371,21 @@ class _HomeScreenState extends State<HomeScreen> {
                                           decoration: InputDecoration(
                                             hintText: 'أضف ردًا...',
                                             hintStyle: GoogleFonts.cairo(
-                                                color: Colors.black38),
+                                              color: Colors.black38,
+                                            ),
                                             filled: true,
                                             fillColor: Colors.white,
-                                            contentPadding: const EdgeInsets.symmetric(
-                                                horizontal: 12, vertical: 10),
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                  horizontal: 12,
+                                                  vertical: 10,
+                                                ),
                                             border: OutlineInputBorder(
-                                              borderRadius: BorderRadius.circular(10),
-                                              borderSide: const BorderSide(color: Colors.black26),
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                              borderSide: const BorderSide(
+                                                color: Colors.black26,
+                                              ),
                                             ),
                                           ),
                                         ),
@@ -366,8 +399,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                         style: IconButton.styleFrom(
                                           backgroundColor: Colors.black87,
                                         ),
-                                        icon: const Icon(Icons.send,
-                                            color: Colors.white, size: 18),
+                                        icon: const Icon(
+                                          Icons.send,
+                                          color: Colors.white,
+                                          size: 18,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -392,12 +428,15 @@ class _HomeScreenState extends State<HomeScreen> {
                               textDirection: TextDirection.rtl,
                               decoration: InputDecoration(
                                 hintText: 'اكتب تعليقًا...',
-                                hintStyle:
-                                GoogleFonts.cairo(color: Colors.black38),
+                                hintStyle: GoogleFonts.cairo(
+                                  color: Colors.black38,
+                                ),
                                 filled: true,
                                 fillColor: Colors.black.withOpacity(0.04),
                                 contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 10),
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
                                   borderSide: BorderSide.none,
@@ -410,13 +449,18 @@ class _HomeScreenState extends State<HomeScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.black87,
                               shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12)),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 12),
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
                             ),
                             onPressed: addComment,
-                            child: Text('إرسال',
-                                style: GoogleFonts.cairo(color: Colors.white)),
+                            child: Text(
+                              'إرسال',
+                              style: GoogleFonts.cairo(color: Colors.white),
+                            ),
                           ),
                         ],
                       ),
@@ -446,7 +490,7 @@ class _HomeScreenState extends State<HomeScreen> {
           setState(() => _selectedIndex = (page == 0) ? 0 : 4);
         },
         children: [
-          _buildFeed(),          // الصفحة 0: الخلاصة (كما كانت)
+          _buildFeed(), // الصفحة 0: الخلاصة (كما كانت)
           const ProfileScreen(), // الصفحة 1: ملفي (أبيض)
         ],
       ),
@@ -495,15 +539,22 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('@user$index',
-                            style: GoogleFonts.cairo(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white)),
+                        Text(
+                          '@user$index',
+                          style: GoogleFonts.cairo(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
                         const SizedBox(height: 8),
-                        Text('إعلان رقم ${index + 1} 🔥',
-                            style: GoogleFonts.cairo(
-                                color: Colors.white, fontSize: 14)),
+                        Text(
+                          'إعلان رقم ${index + 1} 🔥',
+                          style: GoogleFonts.cairo(
+                            color: Colors.white,
+                            fontSize: 14,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -516,7 +567,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           Icons.favorite,
                           count: '120K',
                           color: isLiked ? red : Colors.white,
-                          onTap: () => setState(() => _isLiked[index] = !isLiked),
+                          onTap: () =>
+                              setState(() => _isLiked[index] = !isLiked),
                         ),
                         const SizedBox(height: 18),
                         _iconButton(
@@ -525,13 +577,17 @@ class _HomeScreenState extends State<HomeScreen> {
                           onTap: () => _showComments(index),
                         ),
                         const SizedBox(height: 18),
-                        _iconButton(Icons.chat_bubble_outline,
-                            count: 'تواصل', onTap: _showContactOptions),
+                        _iconButton(
+                          Icons.chat_bubble_outline,
+                          count: 'تواصل',
+                          onTap: _showContactOptions,
+                        ),
                         const SizedBox(height: 18),
                         const CircleAvatar(
                           radius: 22,
-                          backgroundImage:
-                          AssetImage('assets/images/logo_ilanati.png'),
+                          backgroundImage: AssetImage(
+                            'assets/images/logo_ilanati.png',
+                          ),
                         ),
                       ],
                     ),
@@ -544,8 +600,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: AnimatedScale(
                           duration: const Duration(milliseconds: 350),
                           scale: heartVisible ? 1.0 : 0.4,
-                          child: const Icon(Icons.favorite,
-                              color: Colors.redAccent, size: 110),
+                          child: const Icon(
+                            Icons.favorite,
+                            color: Colors.redAccent,
+                            size: 110,
+                          ),
                         ),
                       ),
                     ),
@@ -556,18 +615,24 @@ class _HomeScreenState extends State<HomeScreen> {
           },
         ),
         Positioned(
-          top: 48, left: 0, right: 0,
+          top: 48,
+          left: 0,
+          right: 0,
           child: Center(
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(24)),
-              child: Text('اعلاناتي',
-                  style: GoogleFonts.cairo(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700)),
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Text(
+                'اعلاناتي',
+                style: GoogleFonts.cairo(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ),
         ),
@@ -601,9 +666,9 @@ class _HomeScreenState extends State<HomeScreen> {
               setState(() => _selectedIndex = 0);
               break;
             case 1:
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SearchScreen()),
-              );
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const SearchScreen()));
               break;
             case 2:
               Navigator.of(context).push(
@@ -629,23 +694,35 @@ class _HomeScreenState extends State<HomeScreen> {
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'الرئيسية'),
           BottomNavigationBarItem(icon: Icon(Icons.search), label: 'اكتشف'),
           BottomNavigationBarItem(icon: Icon(Icons.add_box), label: 'إضافة'),
-          BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: 'الرسائل'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'ملفي'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.chat_bubble_outline),
+            label: 'الرسائل',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            label: 'ملفي',
+          ),
         ],
       ),
     );
   }
 
-  Widget _iconButton(IconData icon,
-      {String count = '', Color color = Colors.white, VoidCallback? onTap}) {
+  Widget _iconButton(
+    IconData icon, {
+    String count = '',
+    Color color = Colors.white,
+    VoidCallback? onTap,
+  }) {
     return InkWell(
       onTap: onTap,
       child: Column(
         children: [
           Icon(icon, color: color, size: 32),
           const SizedBox(height: 4),
-          Text(count,
-              style: GoogleFonts.cairo(color: Colors.white, fontSize: 12)),
+          Text(
+            count,
+            style: GoogleFonts.cairo(color: Colors.white, fontSize: 12),
+          ),
         ],
       ),
     );
