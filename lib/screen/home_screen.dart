@@ -1,22 +1,20 @@
+// lib/screen/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:myadds/screen/splash_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
-// ↓↓↓ أضف هذه الاستيرادات للشاشات الجديدة ↓↓↓
 import 'search_screen.dart';
-import 'upload_video_screen.dart';
 import 'profile_screen.dart';
+import 'messages_screen.dart'; // ✅ صفحة الرسائل الفعلية
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
-
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-/// نموذج تعليق مع إعجاب وردود
+// نموذج تعليق
 class Comment {
   String text;
   int likes;
@@ -31,25 +29,24 @@ class Comment {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // للتحريك الأفقي بين (الخلاصة) و(الملف)
-  final PageController _tabsController = PageController(initialPage: 0);
+  // ألوان البراند
+  static const Color _pink = Color(0xFFFE2C55);
+  static const Color _cyan = Color(0xFF25F4EE);
 
-  // للسكول العمودي داخل صفحة الخلاصة (كما كان)
-  final PageController _pageController = PageController();
+  // التبويب الحالي
+  int _selectedIndex = 0; // 0 الرئيسية، 1 بحث، 2 رسائل، 3 ملفي
 
-  // تتبّع عنصر البوتوم بار المحدد
-  int _selectedIndex = 0; // 0 = الرئيسية، 4 = ملفي
+  // سكول عمودي للخلاصة
+  final PageController _feedController = PageController();
 
+  // بيانات عرض
   final List<String> _images = [
     'assets/images/avatar.jpg',
     'assets/images/cover1.jpg',
     'assets/images/cover2.jpg',
   ];
-
   final Map<int, bool> _isLiked = {};
   final Map<int, bool> _heartVisible = {};
-
-  /// تعليقات لكل بطاقة — 3 تعليقات افتراضيًا
   final Map<int, List<Comment>> _comments = {};
 
   void _ensureSeedComments(int index) {
@@ -71,101 +68,111 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  // نافذة تواصل (واتساب + اتصال)
+  // BottomSheet: تواصل مع المعلن
   void _showContactOptions() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.black87,
+      backgroundColor: const Color(0xFF0E0E0E),
+      barrierColor: Colors.black54,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
       ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[600],
-                borderRadius: BorderRadius.circular(10),
-              ),
+      builder: (context) {
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 42,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(100),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                ShaderMask(
+                  shaderCallback: (r) => const LinearGradient(
+                    colors: [_pink, _cyan],
+                  ).createShader(r),
+                  child: Text(
+                    'التواصل مع المعلن',
+                    style: GoogleFonts.cairo(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                _ContactTile(
+                  bg: Colors.white.withOpacity(0.04),
+                  border: Colors.white.withOpacity(0.12),
+                  text: 'تواصل عبر واتساب  970592000000',
+                  leading: const Icon(
+                    FontAwesomeIcons.whatsapp,
+                    color: Color(0xFF25D366),
+                    size: 24,
+                  ),
+                  trailing: _chevron(),
+                  onTap: () async {
+                    final uri = Uri.parse('https://wa.me/970592000000');
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(
+                        uri,
+                        mode: LaunchMode.externalApplication,
+                      );
+                    }
+                  },
+                ),
+                const SizedBox(height: 10),
+                _ContactTile(
+                  bg: Colors.white.withOpacity(0.04),
+                  border: Colors.white.withOpacity(0.12),
+                  text: 'اتصال مباشر  0592835008',
+                  leading: const Icon(
+                    Icons.phone_in_talk_rounded,
+                    color: Colors.white,
+                    size: 22,
+                  ),
+                  trailing: _chevron(),
+                  onTap: () async {
+                    final uri = Uri.parse('tel:0592835008');
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(uri);
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'لن نشارك رقمك مع المعلن.',
+                  style: GoogleFonts.cairo(color: Colors.white54, fontSize: 12),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            Text(
-              'التواصل مع المعلن',
-              style: GoogleFonts.cairo(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 20),
-            _contactButton(
-              icon: FontAwesomeIcons.whatsapp,
-              color: Colors.green,
-              text: 'تواصل عبر واتساب 970592000000',
-              onTap: () async {
-                final uri = Uri.parse('https://wa.me/970592000000');
-                if (await canLaunchUrl(uri)) {
-                  await launchUrl(uri, mode: LaunchMode.externalApplication);
-                }
-              },
-            ),
-            const SizedBox(height: 12),
-            _contactButton(
-              icon: Icons.phone,
-              color: Colors.blueAccent,
-              text: 'اتصال مباشر 0592835008',
-              onTap: () async {
-                final uri = Uri.parse('tel:0592835008');
-                if (await canLaunchUrl(uri)) {
-                  await launchUrl(uri);
-                }
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _contactButton({
-    required IconData icon,
-    required String text,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.4)),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                text,
-                style: GoogleFonts.cairo(color: Colors.white, fontSize: 16),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  static Widget _chevron() => Container(
+    padding: const EdgeInsets.all(6),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(10),
+      gradient: const LinearGradient(colors: [_pink, _cyan]),
+    ),
+    child: const Icon(
+      Icons.arrow_back_ios_new_rounded,
+      size: 12,
+      color: Colors.white,
+    ),
+  );
 
-  /// شاشة التعليقات مع إعجاب + ردود
+  // شاشة التعليقات
   void _showComments(int index) {
     _ensureSeedComments(index);
     final newCommentCtrl = TextEditingController();
@@ -182,7 +189,7 @@ class _HomeScreenState extends State<HomeScreen> {
         final halfHeight = MediaQuery.of(ctx).size.height * 0.55;
 
         return StatefulBuilder(
-          builder: (ctx, setSheetState) {
+          builder: (ctx, setSheet) {
             void toggleLike(int i) {
               setState(() {
                 final c = _comments[index]![i];
@@ -190,7 +197,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 c.likes += c.liked ? 1 : -1;
                 if (c.likes < 0) c.likes = 0;
               });
-              setSheetState(() {});
+              setSheet(() {});
             }
 
             void addComment() {
@@ -198,7 +205,7 @@ class _HomeScreenState extends State<HomeScreen> {
               if (text.isEmpty) return;
               setState(() => _comments[index]!.add(Comment(text)));
               newCommentCtrl.clear();
-              setSheetState(() {});
+              setSheet(() {});
             }
 
             void addReply(int i, String text) {
@@ -206,7 +213,7 @@ class _HomeScreenState extends State<HomeScreen> {
               setState(
                 () => _comments[index]![i].replies.add(Comment(text.trim())),
               );
-              setSheetState(() {});
+              setSheet(() {});
             }
 
             return SizedBox(
@@ -284,7 +291,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                 : Icons.favorite_border,
                                             size: 18,
                                             color: comment.liked
-                                                ? Colors.redAccent
+                                                ? _pink
                                                 : Colors.black54,
                                           ),
                                           const SizedBox(width: 6),
@@ -307,7 +314,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                           expandedReplies.add(i);
                                         }
                                         setState(() {});
-                                        setSheetState(() {});
+                                        setSheet(() {});
                                       },
                                       child: Text(
                                         expandedReplies.contains(i)
@@ -447,7 +454,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           const SizedBox(width: 8),
                           ElevatedButton(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.black87,
+                              backgroundColor: _pink,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
@@ -476,36 +483,55 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ====== UI ======
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: PageView(
-        controller: _tabsController,
-        scrollDirection: Axis.horizontal,
-        onPageChanged: (page) {
-          // مزامنة السواب الأفقي مع البوتوم بار:
-          // الصفحة 0 = الرئيسية, الصفحة 1 = ملفي
-          setState(() => _selectedIndex = (page == 0) ? 0 : 4);
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: WillPopScope(
+        onWillPop: () async {
+          // رجوع الهاردوير: إن كنتِ بغير الرئيسية، ارجعي للرئيسية
+          if (_selectedIndex != 0) {
+            setState(() => _selectedIndex = 0);
+            return false; // لا تغلق التطبيق
+          }
+          return true;
         },
-        children: [
-          _buildFeed(), // الصفحة 0: الخلاصة (كما كانت)
-          const ProfileScreen(), // الصفحة 1: ملفي (أبيض)
-        ],
+        child: Scaffold(
+          // داكن للرئيسية، فاتح لباقي التبويبات
+          backgroundColor: _selectedIndex == 0
+              ? Colors.black
+              : const Color(0xFFF9FBFC),
+
+          body: IndexedStack(
+            index: _selectedIndex,
+            children: [
+              _buildFeed(), // 0: الرئيسية (داكن)
+              // 1: بحث (فاتح) مع كولباك يرجّع للهوم
+              SearchScreen(
+                onBackToHome: () => setState(() => _selectedIndex = 0),
+              ),
+
+              // 2: الرسائل — صفحة فعلية
+              const MessagesScreen(),
+
+              // 3: ملفي
+              const ProfileScreen(),
+            ],
+          ),
+
+          // Bottom bar (فاتح ثابت لكل التطبيق)
+          bottomNavigationBar: _buildBottomBar(),
+        ),
       ),
-      bottomNavigationBar: _buildBottomBar(),
     );
   }
 
+  // الخلاصة (عمودي)
   Widget _buildFeed() {
-    final red = const Color(0xFFFE2C55);
-
     return Stack(
       children: [
-        // Scroll عمودي بين الصور
         PageView.builder(
-          controller: _pageController,
+          controller: _feedController,
           scrollDirection: Axis.vertical,
           itemCount: _images.length,
           itemBuilder: (context, index) {
@@ -525,7 +551,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           begin: Alignment.bottomCenter,
                           end: Alignment.center,
                           colors: [
-                            Colors.black.withOpacity(0.70),
+                            Colors.black.withOpacity(0.72),
                             Colors.transparent,
                           ],
                         ),
@@ -534,7 +560,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   Positioned(
                     left: 16,
-                    bottom: 80,
+                    bottom: 88,
                     right: 90,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -543,11 +569,11 @@ class _HomeScreenState extends State<HomeScreen> {
                           '@user$index',
                           style: GoogleFonts.cairo(
                             fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w800,
                             color: Colors.white,
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         Text(
                           'إعلان رقم ${index + 1} 🔥',
                           style: GoogleFonts.cairo(
@@ -560,13 +586,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   Positioned(
                     right: 10,
-                    bottom: 80,
+                    bottom: 88,
                     child: Column(
                       children: [
                         _iconButton(
                           Icons.favorite,
                           count: '120K',
-                          color: isLiked ? red : Colors.white,
+                          color: isLiked ? _pink : Colors.white,
                           onTap: () =>
                               setState(() => _isLiked[index] = !isLiked),
                         ),
@@ -609,100 +635,81 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ),
+                  Positioned(
+                    top: 48,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        child: Text(
+                          'اعلاناتي',
+                          style: GoogleFonts.cairo(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             );
           },
         ),
-        Positioned(
-          top: 48,
-          left: 0,
-          right: 0,
-          child: Center(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.black54,
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Text(
-                'اعلاناتي',
-                style: GoogleFonts.cairo(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ),
-        ),
       ],
     );
   }
 
+  // Bottom bar (فاتح ثابت لكل التطبيق)
   Widget _buildBottomBar() {
     return Container(
-      color: Colors.black.withOpacity(0.02),
-      child: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.black.withOpacity(0.35),
-        selectedItemColor: Colors.white,
-        unselectedItemColor: Colors.white70,
-        onTap: (i) {
-          // الخرائط المطلوبة:
-          // 0: الرئيسية → صفحة 0
-          // 1: البحث  → افتح SearchScreen
-          // 2: إضافة   → افتح UploadVideoScreen
-          // 3: الرسائل → (اختياري) تنبيه مؤقت
-          // 4: ملفي    → صفحة 1
-          switch (i) {
-            case 0:
-              _tabsController.animateToPage(
-                0,
-                duration: const Duration(milliseconds: 280),
-                curve: Curves.easeOut,
-              );
-              setState(() => _selectedIndex = 0);
-              break;
-            case 1:
-              Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const SearchScreen()));
-              break;
-            case 2:
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const UploadVideoScreen()),
-              );
-              break;
-            case 3:
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('قسم الرسائل لاحقًا')),
-              );
-              break;
-            case 4:
-              _tabsController.animateToPage(
-                1,
-                duration: const Duration(milliseconds: 280),
-                curve: Curves.easeOut,
-              );
-              setState(() => _selectedIndex = 4);
-              break;
-          }
-        },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'الرئيسية'),
-          BottomNavigationBarItem(icon: Icon(Icons.search), label: 'اكتشف'),
-          BottomNavigationBarItem(icon: Icon(Icons.add_box), label: 'إضافة'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chat_bubble_outline),
-            label: 'الرسائل',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            label: 'ملفي',
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFFFDFDFE), Color(0xFFF5FBFC)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+        border: Border(top: BorderSide(color: Color(0xFFE7EDF1))),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 8,
+            offset: Offset(0, -2),
           ),
         ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: BottomNavigationBar(
+          currentIndex: _selectedIndex,
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          selectedItemColor: Colors.black87,
+          unselectedItemColor: Colors.black54,
+          onTap: (i) => setState(() => _selectedIndex = i),
+          items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.home), label: 'الرئيسية'),
+            BottomNavigationBarItem(icon: Icon(Icons.search), label: 'اكتشف'),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.chat_bubble_outline),
+              label: 'الرسائل',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.person_outline),
+              label: 'ملفي',
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -715,15 +722,72 @@ class _HomeScreenState extends State<HomeScreen> {
   }) {
     return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
       child: Column(
         children: [
-          Icon(icon, color: color, size: 32),
-          const SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.25),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: color, size: 26),
+          ),
+          const SizedBox(height: 6),
           Text(
             count,
             style: GoogleFonts.cairo(color: Colors.white, fontSize: 12),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// بلاطة تواصل
+class _ContactTile extends StatelessWidget {
+  const _ContactTile({
+    required this.text,
+    required this.leading,
+    required this.trailing,
+    required this.onTap,
+    required this.bg,
+    required this.border,
+  });
+
+  final String text;
+  final Widget leading;
+  final Widget trailing;
+  final VoidCallback onTap;
+  final Color bg;
+  final Color border;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: border),
+        ),
+        child: Row(
+          children: [
+            leading,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                text,
+                style: GoogleFonts.cairo(color: Colors.white, fontSize: 15),
+              ),
+            ),
+            const SizedBox(width: 8),
+            trailing,
+          ],
+        ),
       ),
     );
   }

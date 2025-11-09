@@ -10,7 +10,7 @@ class BusinessManagementScreen extends StatefulWidget {
 }
 
 class _BusinessManagementScreenState extends State<BusinessManagementScreen> {
-  // ثيم موحّد (pastel TikTok)
+  // ألوان الهوية
   static const Color _pink = Color(0xFFFE2C55);
   static const Color _cyan = Color(0xFF06B6D4);
 
@@ -18,61 +18,82 @@ class _BusinessManagementScreenState extends State<BusinessManagementScreen> {
   final _name = TextEditingController();
   final _location = TextEditingController();
   final _price = TextEditingController();
+  final _description = TextEditingController();
 
-  // حالة الفيديو (واجهة فقط الآن)
   String? _videoFileName;
 
-  // أيام الأسبوع بالعربي (ابدأ بالسبت)
-  final List<String> _days = const [
-    'السبت',
-    'الأحد',
-    'الاثنين',
-    'الثلاثاء',
-    'الأربعاء',
-    'الخميس',
-    'الجمعة',
-  ];
+  // الشهر المعروض (افتراضي: الشهر الحالي)
+  DateTime _visibleMonth = DateTime(
+    DateTime.now().year,
+    DateTime.now().month,
+    1,
+  );
 
-  // حالات التوفر
-  // 0 = غير محدد (رمادي)  |  1 = متاح (أخضر)  |  2 = محجوز (أحمر)
-  final Map<int, int> _availability = {for (int i = 0; i < 7; i++) i: 0};
+  /// خريطة حالة أيام الشهر: true = محجوز | false = متاح
+  final Map<String, bool> _booked = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _initMonthGrid(_visibleMonth);
+  }
 
   @override
   void dispose() {
     _name.dispose();
     _location.dispose();
     _price.dispose();
+    _description.dispose();
     super.dispose();
   }
 
-  void _cycleDay(int index) {
+  // ===== منطق التقويم =====
+  void _initMonthGrid(DateTime month) {
+    _booked.clear();
+    final int year = month.year;
+    final int mon = month.month;
+    final int daysInMonth = DateTime(year, mon + 1, 0).day;
+    for (int d = 1; d <= daysInMonth; d++) {
+      final key = _keyOf(DateTime(year, mon, d));
+      _booked.putIfAbsent(key, () => false); // افتراضيًا: متاح
+    }
+    setState(() {});
+  }
+
+  String _keyOf(DateTime d) =>
+      "${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
+
+  void _prevMonth() {
+    final m = DateTime(_visibleMonth.year, _visibleMonth.month - 1, 1);
+    _visibleMonth = m;
+    _initMonthGrid(m);
+  }
+
+  void _nextMonth() {
+    final m = DateTime(_visibleMonth.year, _visibleMonth.month + 1, 1);
+    _visibleMonth = m;
+    _initMonthGrid(m);
+  }
+
+  void _toggleDay(DateTime day) {
+    final key = _keyOf(day);
+    if (_booked.containsKey(key)) {
+      setState(() => _booked[key] = !(_booked[key]!)); // قلب الحالة
+    }
+  }
+
+  void _setAll(bool booked) {
     setState(() {
-      _availability[index] = (_availability[index]! + 1) % 3;
+      for (final k in _booked.keys) {
+        _booked[k] = booked;
+      }
     });
   }
 
-  Color _statusColor(int s) {
-    switch (s) {
-      case 1:
-        return Colors.green; // متاح
-      case 2:
-        return Colors.red; // محجوز
-      default:
-        return Colors.grey.shade300; // غير محدد
-    }
-  }
+  Color _dayColor(bool isBooked) => isBooked ? Colors.red : Colors.green;
+  String _dayLabel(bool isBooked) => isBooked ? 'محجوز' : 'متاح';
 
-  String _statusLabel(int s) {
-    switch (s) {
-      case 1:
-        return 'متاح';
-      case 2:
-        return 'محجوز';
-      default:
-        return 'غير محدد';
-    }
-  }
-
+  // ===== حفظ البيانات (واجهة) =====
   void _save() {
     if (!_formKey.currentState!.validate()) return;
 
@@ -80,21 +101,23 @@ class _BusinessManagementScreenState extends State<BusinessManagementScreen> {
       'name': _name.text.trim(),
       'location': _location.text.trim(),
       'price': _price.text.trim(),
-      'availability': {
-        for (int i = 0; i < 7; i++) _days[i]: _statusLabel(_availability[i]!),
+      'description': _description.text.trim(),
+      'month': {'year': _visibleMonth.year, 'month': _visibleMonth.month},
+      'days': {
+        for (final e in _booked.entries)
+          e.key: e.value ? 'booked' : 'available',
       },
       'video': _videoFileName ?? '',
     };
 
-    // هنا لاحقاً: ارفع الفيديو لـ Storage، واحفظ data في Firestore.
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('تم حفظ بيانات الشاليه ✅')));
 
-    // debug print
-    // print(data);
+    // print(data); // للديبغ إن احتجت
   }
 
+  // ===== واجهة المستخدم =====
   @override
   Widget build(BuildContext context) {
     return Directionality(
@@ -102,7 +125,7 @@ class _BusinessManagementScreenState extends State<BusinessManagementScreen> {
       child: Scaffold(
         body: Stack(
           children: [
-            // خلفية متدرجة ناعمة (مطابقة للشاشات السابقة)
+            // خلفية متدرجة
             Container(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
@@ -171,7 +194,7 @@ class _BusinessManagementScreenState extends State<BusinessManagementScreen> {
             SafeArea(
               child: Column(
                 children: [
-                  // AppBar بسيط
+                  // AppBar
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -217,19 +240,17 @@ class _BusinessManagementScreenState extends State<BusinessManagementScreen> {
                               pink: _pink,
                               cyan: _cyan,
                               fileName: _videoFileName,
-                              onPick: () async {
-                                // هنا لاحقاً: افتح File/Video picker
-                                // حالياً: نعمل اسم وهمي للتجربة
+                              onPick: () {
                                 setState(
                                   () => _videoFileName = 'chalet_video.mp4',
-                                );
+                                ); // mock
                               },
                               onRemove: () =>
                                   setState(() => _videoFileName = null),
                             ),
                             const SizedBox(height: 16),
 
-                            // حقول أساسية
+                            // اسم الشاليه
                             TextFormField(
                               controller: _name,
                               decoration: _input(
@@ -241,6 +262,8 @@ class _BusinessManagementScreenState extends State<BusinessManagementScreen> {
                                   : null,
                             ),
                             const SizedBox(height: 12),
+
+                            // الموقع
                             TextFormField(
                               controller: _location,
                               decoration: _input(
@@ -253,6 +276,8 @@ class _BusinessManagementScreenState extends State<BusinessManagementScreen> {
                                   : null,
                             ),
                             const SizedBox(height: 12),
+
+                            // سعر الحجز
                             TextFormField(
                               controller: _price,
                               keyboardType: TextInputType.number,
@@ -269,76 +294,64 @@ class _BusinessManagementScreenState extends State<BusinessManagementScreen> {
                                     : null;
                               },
                             ),
+                            const SizedBox(height: 12),
+
+                            // وصف الشاليه
+                            TextFormField(
+                              controller: _description,
+                              decoration: _input(
+                                'وصف الشاليه (عدد الغرف، المرافق…)',
+                                const Icon(Icons.description_rounded),
+                              ),
+                              minLines: 3,
+                              maxLines: 6,
+                              maxLength: 500,
+                            ),
                             const SizedBox(height: 18),
 
-                            // جدول التوفر
-                            const Text(
-                              'التوفر خلال الأسبوع',
-                              style: TextStyle(fontWeight: FontWeight.w800),
+                            // التقويم الشهري
+                            _MonthCalendar(
+                              month: _visibleMonth,
+                              bookedMap: _booked,
+                              onPrev: _prevMonth,
+                              onNext: _nextMonth,
+                              onToggle: _toggleDay,
+                              dayColor: _dayColor,
+                              dayLabel: _dayLabel,
                             ),
-                            const SizedBox(height: 10),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: List.generate(_days.length, (i) {
-                                final st = _availability[i]!;
-                                return GestureDetector(
-                                  onTap: () => _cycleDay(i),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 10,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: _statusColor(st),
-                                      borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(
-                                        color: Colors.black.withOpacity(.08),
-                                      ),
-                                    ),
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          _days[i],
-                                          style: TextStyle(
-                                            color: st == 0
-                                                ? Colors.black87
-                                                : Colors.white,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          _statusLabel(st),
-                                          style: TextStyle(
-                                            color: st == 0
-                                                ? Colors.black54
-                                                : Colors.white,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              }),
-                            ),
+
                             const SizedBox(height: 10),
 
-                            // دليل الألوان
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                            // أزرار سريعة + أسطورة
+                            Wrap(
+                              alignment: WrapAlignment.center,
+                              spacing: 10,
+                              runSpacing: 10,
                               children: [
-                                _legendBox(color: Colors.green, label: 'متاح'),
-                                const SizedBox(width: 12),
-                                _legendBox(color: Colors.red, label: 'محجوز'),
-                                const SizedBox(width: 12),
-                                _legendBox(
-                                  color: Colors.grey.shade300,
-                                  label: 'غير محدد',
-                                  textColor: Colors.black87,
+                                OutlinedButton.icon(
+                                  icon: const Icon(Icons.event_available),
+                                  label: const Text('تحديد الشهر متاح'),
+                                  onPressed: () => _setAll(false),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.green.shade700,
+                                    side: BorderSide(
+                                      color: Colors.green.shade600,
+                                    ),
+                                  ),
                                 ),
+                                OutlinedButton.icon(
+                                  icon: const Icon(Icons.event_busy),
+                                  label: const Text('تحديد الشهر محجوز'),
+                                  onPressed: () => _setAll(true),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.red.shade700,
+                                    side: BorderSide(
+                                      color: Colors.red.shade600,
+                                    ),
+                                  ),
+                                ),
+                                _legendBox(color: Colors.green, label: 'متاح'),
+                                _legendBox(color: Colors.red, label: 'محجوز'),
                               ],
                             ),
 
@@ -377,7 +390,7 @@ class _BusinessManagementScreenState extends State<BusinessManagementScreen> {
     );
   }
 
-  // ديكورات موحدة
+  // ديكورات
   static Widget _softBlob(Color c, double size) {
     return Container(
       width: size,
@@ -401,19 +414,16 @@ class _BusinessManagementScreenState extends State<BusinessManagementScreen> {
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.black12),
+        borderSide: const BorderSide(color: Colors.black12),
       ),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     );
   }
 
-  Widget _legendBox({
-    required Color color,
-    required String label,
-    Color? textColor,
-  }) {
+  Widget _legendBox({required Color color, required String label}) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
           width: 16,
@@ -424,13 +434,13 @@ class _BusinessManagementScreenState extends State<BusinessManagementScreen> {
           ),
         ),
         const SizedBox(width: 6),
-        Text(label, style: TextStyle(color: textColor ?? Colors.black87)),
+        Text(label, style: const TextStyle(color: Colors.black87)),
       ],
     );
   }
 }
 
-// بطاقة رفع فيديو (واجهة فقط الآن)
+// بطاقة رفع فيديو (واجهة)
 class _VideoCard extends StatelessWidget {
   final Color pink;
   final Color cyan;
@@ -514,7 +524,230 @@ class _VideoCard extends StatelessWidget {
   }
 }
 
-// ==== Clippers للتموجات ====
+// ==== تقويم شهري مخصص ====
+class _MonthCalendar extends StatelessWidget {
+  final DateTime month;
+  final Map<String, bool> bookedMap; // true=محجوز | false=متاح
+  final VoidCallback onPrev;
+  final VoidCallback onNext;
+  final void Function(DateTime day) onToggle;
+  final Color Function(bool isBooked) dayColor;
+  final String Function(bool isBooked) dayLabel;
+
+  const _MonthCalendar({
+    required this.month,
+    required this.bookedMap,
+    required this.onPrev,
+    required this.onNext,
+    required this.onToggle,
+    required this.dayColor,
+    required this.dayLabel,
+  });
+
+  int _daysInMonth(DateTime m) => DateTime(m.year, m.month + 1, 0).day;
+
+  // تحويل weekday لبدء الأسبوع بالسبت
+  int _satLeadingBlanks(DateTime m) {
+    final w = DateTime(m.year, m.month, 1).weekday; // Mon=1..Sun=7
+    if (w == 6) return 0; // Saturday
+    if (w == 7) return 1; // Sunday
+    return w + 1; // Mon->2 ... Fri->6
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final daysCount = _daysInMonth(month);
+    final leading = _satLeadingBlanks(month);
+    final cells = leading + daysCount;
+    final rows = (cells / 7).ceil();
+
+    final headerStyle = Theme.of(
+      context,
+    ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800);
+
+    // سقف بسيط لتكبير النص حتى لا تنكسر عناوين الأيام
+    final capped = MediaQuery.of(context).copyWith(
+      textScaleFactor: MediaQuery.textScaleFactorOf(context).clamp(1.0, 1.15),
+    );
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.black.withOpacity(.08)),
+        boxShadow: const [
+          BoxShadow(
+            blurRadius: 10,
+            color: Colors.black12,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // شريط الشهر ← →
+          Row(
+            children: [
+              IconButton(
+                onPressed: onPrev,
+                icon: const Icon(Icons.chevron_right),
+              ),
+              Expanded(
+                child: Center(
+                  child: Text(
+                    "${_arabicMonthName(month.month)} ${month.year}",
+                    style: headerStyle,
+                  ),
+                ),
+              ),
+              IconButton(
+                onPressed: onNext,
+                icon: const Icon(Icons.chevron_left),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+
+          // عناوين الأيام (السبت أولاً)
+          MediaQuery(
+            data: capped,
+            child: Row(
+              children: const [
+                _DayHeader('السبت'),
+                _DayHeader('الأحد'),
+                _DayHeader('الاثنين'),
+                _DayHeader('الثلاثاء'),
+                _DayHeader('الأربعاء'),
+                _DayHeader('الخميس'),
+                _DayHeader('الجمعة'),
+              ],
+            ),
+          ),
+          const SizedBox(height: 6),
+
+          // الشبكة
+          Column(
+            children: List.generate(rows, (r) {
+              return Row(
+                children: List.generate(7, (c) {
+                  final cellIndex = r * 7 + c;
+                  final dayNumber = cellIndex - leading + 1;
+                  if (dayNumber < 1 || dayNumber > daysCount) {
+                    return const Expanded(child: SizedBox(height: 54));
+                  }
+                  final date = DateTime(month.year, month.month, dayNumber);
+                  final key =
+                      "${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+                  final booked = bookedMap[key] ?? false;
+
+                  return Expanded(
+                    child: GestureDetector(
+                      onTap: () => onToggle(date),
+                      child: Container(
+                        height: 54,
+                        margin: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: dayColor(booked),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: Colors.black.withOpacity(.06),
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              dayNumber.toString(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              dayLabel(booked),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              );
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _arabicMonthName(int m) {
+    const names = [
+      'يناير',
+      'فبراير',
+      'مارس',
+      'أبريل',
+      'مايو',
+      'يونيو',
+      'يوليو',
+      'أغسطس',
+      'سبتمبر',
+      'أكتوبر',
+      'نوفمبر',
+      'ديسمبر',
+    ];
+    return names[m - 1];
+  }
+}
+
+class _DayHeader extends StatelessWidget {
+  final String title;
+  const _DayHeader(this.title);
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        height: 34,
+        margin: const EdgeInsets.symmetric(horizontal: 2),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: const Color(0xFFF7F7F9),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const _NoWrapText(),
+      ),
+    );
+  }
+}
+
+// نص مانع للّف مع تصغير تلقائي
+class _NoWrapText extends StatelessWidget {
+  const _NoWrapText({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final parent = context.findAncestorWidgetOfExactType<_DayHeader>();
+    final title = (parent is _DayHeader) ? parent.title : '';
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(
+        title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        softWrap: false,
+        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+      ),
+    );
+  }
+}
+
+// ==== Clippers للديكور ====
 class _TopWaveClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {

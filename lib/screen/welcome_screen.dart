@@ -53,6 +53,7 @@ class WelcomeScreen extends StatelessWidget {
                         // العنوان بالنص (Gradient لطيف جدًا)
                         _GradientTitle(
                           text: 'اعلاناتي',
+
                           gradient: const LinearGradient(
                             colors: [_pink, _cyan],
                             begin: Alignment.centerLeft,

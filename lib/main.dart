@@ -13,6 +13,7 @@ import 'package:myadds/screen/auth/verify_email_screen.dart';
 import 'package:myadds/screen/home_screen.dart';
 import 'package:myadds/screen/search_screen.dart';
 import 'package:myadds/screen/business_management_screen.dart';
+import 'package:myadds/screen/messages_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,13 +35,20 @@ class MyApp extends StatelessWidget {
       ),
       home: const SplashScreen(), // ← أول شاشة
       routes: {
-        '/welcome': (_) => const WelcomeScreen(), // ← شاشة اختيار دخول أو ضيف
+        '/welcome': (_) => const WelcomeScreen(),
         '/login': (_) => const LoginScreen(),
         '/register': (_) => const RegistrationScreen(),
         '/verify': (_) => const VerifyEmailScreen(),
-        '/home': (_) => const BusinessManagementScreen(),
+
+        // ✅ خلي /home تفتح الصفحة الرئيسية ذات التبويبات
+        '/home': (_) => const HomeScreen(),
+
         '/splash': (_) => const SplashScreen(),
         '/search': (_) => const SearchScreen(),
+
+        // ✅ Route للرسائل
+        '/messages': (_) => const MessagesScreen(),
+
         '/owner/manage': (_) => const BusinessManagementScreen(),
       },
     );
