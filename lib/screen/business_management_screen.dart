@@ -10,7 +10,6 @@ class BusinessManagementScreen extends StatefulWidget {
 }
 
 class _BusinessManagementScreenState extends State<BusinessManagementScreen> {
-  // ألوان الهوية
   static const Color _pink = Color(0xFFFE2C55);
   static const Color _cyan = Color(0xFF06B6D4);
 

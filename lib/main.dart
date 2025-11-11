@@ -31,7 +31,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'إعلاناتي',
       theme: ThemeData(
-        primarySwatch: Colors.deepPurple,
+        // primarySwatch: Colors.deepPurple,
         scaffoldBackgroundColor: Colors.grey[50],
       ),
       home: const SplashScreen(), // ← أول شاشة
