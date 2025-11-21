@@ -109,6 +109,59 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     if (!snap.exists || overwriteIfExists) {
       await users.set(data, SetOptions(merge: true));
     }
+
+    if (type == UserType.owner) {
+      await _ensureOwnerChaletDoc(
+        user: user,
+        phone: phone,
+        chaletName: chaletName,
+        chaletAddress: chaletAddress,
+      );
+    }
+  }
+
+  Future<void> _ensureOwnerChaletDoc({
+    required User user,
+    String? chaletName,
+    String? chaletAddress,
+    String? phone,
+  }) async {
+    final chalets =
+        FirebaseFirestore.instance.collection('chalets').doc(user.uid);
+    final snapshot = await chalets.get();
+
+    final trimmedName = chaletName?.trim() ?? '';
+    final trimmedAddress = chaletAddress?.trim() ?? '';
+    final trimmedPhone = phone?.trim() ?? '';
+
+    if (!snapshot.exists) {
+      await chalets.set({
+        'ownerId': user.uid,
+        'name': trimmedName,
+        'location': trimmedAddress,
+        'phone': trimmedPhone,
+        'price': 0,
+        'description': '',
+        'availability': {},
+        'likes': 0,
+        'commentsCount': 0,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAvailabilityAt': FieldValue.serverTimestamp(),
+      });
+      return;
+    }
+
+    final updates = <String, dynamic>{
+      'ownerId': user.uid,
+    };
+
+    if (trimmedName.isNotEmpty) updates['name'] = trimmedName;
+    if (trimmedAddress.isNotEmpty) updates['location'] = trimmedAddress;
+    if (trimmedPhone.isNotEmpty) updates['phone'] = trimmedPhone;
+
+    if (updates.length > 1) {
+      await chalets.set(updates, SetOptions(merge: true));
+    }
   }
 
   // ====================== Email/Password Register ======================

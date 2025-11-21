@@ -1,9 +1,35 @@
 // lib/screen/welcome_screen.dart
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
+
+  // Sign out any existing session when entering guest mode
+  Future<void> _continueAsGuest(BuildContext context) async {
+    try {
+      // Sign out from Firebase Auth if there's an active session
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await FirebaseAuth.instance.signOut();
+        // Also sign out from Google Sign In if it was used
+        try {
+          await GoogleSignIn().signOut();
+        } catch (_) {
+          // Ignore Google Sign In errors
+        }
+      }
+    } catch (e) {
+      // If sign out fails, continue anyway - we'll check auth state in HomeScreen
+      debugPrint('Error signing out for guest mode: $e');
+    }
+
+    if (context.mounted) {
+      Navigator.pushReplacementNamed(context, '/home');
+    }
+  }
 
   // TikTok Pastel (Soft) Palette
   static const Color _pink = Color(0xFFFE2C55);
@@ -19,7 +45,6 @@ class WelcomeScreen extends StatelessWidget {
       child: Scaffold(
         body: Stack(
           children: [
-            // خلفية فاتحة جدًا مع لمسة وردي/سيان باستيلي ناعم
             Container(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
@@ -29,7 +54,6 @@ class WelcomeScreen extends StatelessWidget {
                 ),
               ),
             ),
-            // بقع توهج ناعمة جدًا (pastel)
             Positioned(
               top: -120,
               right: -90,
@@ -131,10 +155,8 @@ class WelcomeScreen extends StatelessWidget {
 
                         const SizedBox(height: 16),
 
-                        // متابعة كضيف (نصي بسيط)
                         TextButton(
-                          onPressed: () =>
-                              Navigator.pushReplacementNamed(context, '/home'),
+                          onPressed: () => _continueAsGuest(context),
                           child: Text(
                             'متابعة كضيف',
                             style: GoogleFonts.cairo(
@@ -144,8 +166,6 @@ class WelcomeScreen extends StatelessWidget {
                             ),
                           ),
                         ),
-
-                        // ملاحظة: لا صورة في الأعلى، ولا "تخطي الآن" — حسب طلبك
                       ],
                     ),
                   ),
@@ -187,7 +207,7 @@ class _GradientTitle extends StatelessWidget {
         style: GoogleFonts.cairo(
           fontSize: 36,
           fontWeight: FontWeight.w900,
-          color: Colors.white, // يتلوّن بالـ Shader
+          color: Colors.white,
           letterSpacing: .2,
         ),
       ),

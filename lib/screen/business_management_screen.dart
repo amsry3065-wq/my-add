@@ -1,5 +1,10 @@
-// lib/screen/owner/business_management_screen.dart
+import 'dart:io';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 class BusinessManagementScreen extends StatefulWidget {
   const BusinessManagementScreen({super.key});
@@ -10,6 +15,213 @@ class BusinessManagementScreen extends StatefulWidget {
 }
 
 class _BusinessManagementScreenState extends State<BusinessManagementScreen> {
+  Map<String, dynamic>? _availability;
+  bool _initialLoading = true;
+  bool _uploading = false;
+  double _uploadProgress = 0.0;
+  String? _videoDownloadUrl;
+  bool _savingPrice = false;
+
+  Future<void> _savePrice() async {
+    final raw = _price.text.trim();
+    final value = num.tryParse(raw);
+
+    if (raw.isEmpty || value == null || value <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('أدخل سعرًا صحيحًا')),
+      );
+      return;
+    }
+
+    setState(() => _savingPrice = true);
+
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('يجب تسجيل الدخول أولاً')),
+      );
+      setState(() => _savingPrice = false);
+      return;
+    }
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('chalets')
+          .doc(user.uid)
+          .set({
+        'ownerId': user.uid,
+        'price': value,
+        'updatedPriceAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم حفظ السعر بنجاح ✅')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('خطأ: $e')),
+      );
+    }
+
+    setState(() => _savingPrice = false);
+  }
+
+  bool _savingDescription = false;
+
+  Future<void> _saveDescription() async {
+    final desc = _description.text.trim();
+
+    if (desc.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('أدخل وصف الشاليه')),
+      );
+      return;
+    }
+
+    setState(() => _savingDescription = true);
+
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('يجب تسجيل الدخول أولاً')),
+      );
+      setState(() => _savingDescription = false);
+      return;
+    }
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('chalets')
+          .doc(user.uid)
+          .set({
+        'ownerId': user.uid,
+        'description': desc,
+        'updatedDescriptionAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم حفظ الوصف بنجاح ✅')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('خطأ: $e')),
+      );
+    }
+
+    setState(() => _savingDescription = false);
+  }
+
+  bool _savingCalendar = false;
+  Future<void> _saveCalendar() async {
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('يجب تسجيل الدخول أولاً')),
+      );
+      return;
+    }
+
+    setState(() {
+      _savingCalendar = true;
+    });
+
+    try {
+      final monthKey =
+          "${_visibleMonth.year.toString().padLeft(4, '0')}-${_visibleMonth.month.toString().padLeft(2, '0')}";
+
+      final daysMap = {
+        for (final e in _booked.entries) e.key: e.value,
+      };
+
+      final docRef =
+      FirebaseFirestore.instance.collection('chalets').doc(user.uid);
+
+      await docRef.set({
+        'ownerId': user.uid,
+        'availability': {
+          monthKey: daysMap,
+        },
+        'updatedAvailabilityAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      _availability ??= {};
+      _availability![monthKey] = daysMap;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم حفظ التقويم لهذا الشهر ✅')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('حدث خطأ أثناء حفظ التقويم: $e')),
+      );
+    }
+
+    setState(() {
+      _savingCalendar = false;
+    });
+  }
+  void _applyAvailabilityForCurrentMonth() {
+    if (_availability == null) return;
+
+    final monthKey =
+        "${_visibleMonth.year.toString().padLeft(4, '0')}-${_visibleMonth.month.toString().padLeft(2, '0')}";
+
+    final monthData = _availability![monthKey];
+    if (monthData is Map<String, dynamic>) {
+      monthData.forEach((dateKey, value) {
+        if (value is bool && _booked.containsKey(dateKey)) {
+          _booked[dateKey] = value;
+        }
+      });
+      setState(() {});
+    }
+  }
+
+
+  Future<void> _loadChaletData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      setState(() => _initialLoading = false);
+      return;
+    }
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('chalets')
+          .doc(user.uid)
+          .get();
+
+      if (doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+
+        final priceValue = data['price'];
+        if (priceValue != null) {
+          _price.text = priceValue.toString();
+        }
+
+        final descValue = data['description'];
+        if (descValue is String) {
+          _description.text = descValue;
+        }
+        final avail = data['availability'];
+        if (avail is Map<String, dynamic>) {
+          _availability = avail;
+          _applyAvailabilityForCurrentMonth();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading chalet data: $e');
+    }
+
+    setState(() => _initialLoading = false);
+  }
+
+
+
+
+
+
   static const Color _pink = Color(0xFFFE2C55);
   static const Color _cyan = Color(0xFF06B6D4);
 
@@ -19,22 +231,23 @@ class _BusinessManagementScreenState extends State<BusinessManagementScreen> {
   final _price = TextEditingController();
   final _description = TextEditingController();
 
+  final ImagePicker _picker = ImagePicker();
   String? _videoFileName;
+  String? _videoFilePath;
 
-  // الشهر المعروض (افتراضي: الشهر الحالي)
   DateTime _visibleMonth = DateTime(
     DateTime.now().year,
     DateTime.now().month,
     1,
   );
 
-  /// خريطة حالة أيام الشهر: true = محجوز | false = متاح
   final Map<String, bool> _booked = {};
 
   @override
   void initState() {
     super.initState();
     _initMonthGrid(_visibleMonth);
+    _loadChaletData();
   }
 
   @override
@@ -46,7 +259,126 @@ class _BusinessManagementScreenState extends State<BusinessManagementScreen> {
     super.dispose();
   }
 
-  // ===== منطق التقويم =====
+  // ---------------------- VIDEO PICKING ----------------------
+
+  Future<void> _pickVideo() async {
+    final XFile? picked = await _picker.pickVideo(
+      source: ImageSource.gallery,
+    );
+
+    if (!mounted) return;
+
+    if (picked == null) {
+      // المستخدم رجع بدون اختيار فيديو → لا نعمل شيء
+      return;
+    }
+
+    setState(() {
+      _videoFileName = picked.name;
+      _videoFilePath = picked.path;
+    });
+  }
+
+  void _removeVideo() {
+    setState(() {
+      _videoFileName = null;
+      _videoFilePath = null;
+    });
+  }
+
+
+  Future<void> _uploadVideoToStorage() async {
+    if (_videoFilePath == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('اختر فيديو أولاً')),
+      );
+      return;
+    }
+
+    try {
+      setState(() {
+        _uploading = true;
+        _uploadProgress = 0;
+      });
+
+      // 1️⃣ Get owner UID
+      final uid = FirebaseAuth.instance.currentUser!.uid;
+
+      // 2️⃣ Fetch chalet belonging to this owner
+      final snapshot = await FirebaseFirestore.instance
+          .collection('chalets')
+          .where('ownerId', isEqualTo: uid)
+          .limit(1)
+          .get();
+
+      if (snapshot.docs.isEmpty) {
+        setState(() => _uploading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('لم يتم العثور على شاليه لهذا المالك')),
+        );
+        return;
+      }
+
+      // 3️⃣ This is your chalet document ID
+      final chaletId = snapshot.docs.first.id;
+
+      // 4️⃣ Upload video to Storage
+      final file = File(_videoFilePath!);
+      final fileName = 'chalet_${DateTime.now().millisecondsSinceEpoch}.mp4';
+
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('chalets_videos/$fileName');
+
+      final uploadTask = ref.putFile(file);
+
+      uploadTask.snapshotEvents.listen((e) {
+        final total = e.totalBytes;
+        final transferred = e.bytesTransferred;
+        if (total > 0) {
+          setState(() {
+            _uploadProgress = transferred / total;
+          });
+        }
+      });
+
+      final storageSnap = await uploadTask;
+      final downloadUrl = await storageSnap.ref.getDownloadURL();
+
+      // 5️⃣ Update chalet doc with video fields
+      await FirebaseFirestore.instance
+          .collection('chalets')
+          .doc(chaletId)
+          .set({
+        'videoFileName': fileName,
+        'videoUrl': downloadUrl,
+        'likes': FieldValue.increment(0),
+        'commentsCount': FieldValue.increment(0),
+        'updatedVideoAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      setState(() {
+        _uploading = false;
+        _videoDownloadUrl = downloadUrl;
+        _videoFileName = fileName; // Keep the uploaded file name
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم رفع الفيديو بنجاح ✅')),
+      );
+    } catch (e) {
+      setState(() => _uploading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('خطأ في رفع الفيديو: $e')),
+      );
+    }
+  }
+
+
+
+
+  // ---------------------- CALENDAR LOGIC ----------------------
+
   void _initMonthGrid(DateTime month) {
     _booked.clear();
     final int year = month.year;
@@ -54,7 +386,7 @@ class _BusinessManagementScreenState extends State<BusinessManagementScreen> {
     final int daysInMonth = DateTime(year, mon + 1, 0).day;
     for (int d = 1; d <= daysInMonth; d++) {
       final key = _keyOf(DateTime(year, mon, d));
-      _booked.putIfAbsent(key, () => false); // افتراضيًا: متاح
+      _booked.putIfAbsent(key, () => false);
     }
     setState(() {});
   }
@@ -66,18 +398,21 @@ class _BusinessManagementScreenState extends State<BusinessManagementScreen> {
     final m = DateTime(_visibleMonth.year, _visibleMonth.month - 1, 1);
     _visibleMonth = m;
     _initMonthGrid(m);
+    _applyAvailabilityForCurrentMonth();
   }
 
   void _nextMonth() {
     final m = DateTime(_visibleMonth.year, _visibleMonth.month + 1, 1);
     _visibleMonth = m;
     _initMonthGrid(m);
+    _applyAvailabilityForCurrentMonth();
   }
+
 
   void _toggleDay(DateTime day) {
     final key = _keyOf(day);
     if (_booked.containsKey(key)) {
-      setState(() => _booked[key] = !(_booked[key]!)); // قلب الحالة
+      setState(() => _booked[key] = !(_booked[key]!));
     }
   }
 
@@ -92,7 +427,8 @@ class _BusinessManagementScreenState extends State<BusinessManagementScreen> {
   Color _dayColor(bool isBooked) => isBooked ? Colors.red : Colors.green;
   String _dayLabel(bool isBooked) => isBooked ? 'محجوز' : 'متاح';
 
-  // ===== حفظ البيانات (واجهة) =====
+  // ---------------------- SAVE ----------------------
+
   void _save() {
     if (!_formKey.currentState!.validate()) return;
 
@@ -101,30 +437,39 @@ class _BusinessManagementScreenState extends State<BusinessManagementScreen> {
       'location': _location.text.trim(),
       'price': _price.text.trim(),
       'description': _description.text.trim(),
-      'month': {'year': _visibleMonth.year, 'month': _visibleMonth.month},
+      'month': {
+        'year': _visibleMonth.year,
+        'month': _visibleMonth.month,
+      },
       'days': {
         for (final e in _booked.entries)
           e.key: e.value ? 'booked' : 'available',
       },
-      'video': _videoFileName ?? '',
+      'videoName': _videoFileName ?? '',
+      'videoPath': _videoFilePath ?? '',
     };
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('تم حفظ بيانات الشاليه ✅')));
+    // TODO: هنا تقدر تبعت data للسيرفر حقك
 
-    // print(data); // للديبغ إن احتجت
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('تم حفظ بيانات الشاليه ✅'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
-  // ===== واجهة المستخدم =====
+  // ---------------------- BUILD ----------------------
+
   @override
   Widget build(BuildContext context) {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
+        backgroundColor: const Color(0xfff5f7fa),
         body: Stack(
           children: [
-            // خلفية متدرجة
+            // خلفية ناعمة
             Container(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
@@ -134,7 +479,6 @@ class _BusinessManagementScreenState extends State<BusinessManagementScreen> {
                 ),
               ),
             ),
-            // تموج علوي
             Positioned.fill(
               child: Align(
                 alignment: Alignment.topCenter,
@@ -156,7 +500,6 @@ class _BusinessManagementScreenState extends State<BusinessManagementScreen> {
                 ),
               ),
             ),
-            // تموج سفلي
             Positioned.fill(
               child: Align(
                 alignment: Alignment.bottomCenter,
@@ -178,7 +521,6 @@ class _BusinessManagementScreenState extends State<BusinessManagementScreen> {
                 ),
               ),
             ),
-            // توهجات خفيفة
             Positioned(
               top: -90,
               right: -70,
@@ -193,33 +535,33 @@ class _BusinessManagementScreenState extends State<BusinessManagementScreen> {
             SafeArea(
               child: Column(
                 children: [
-                  // AppBar
+                  // AppBar custom
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 4,
                     ),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(
-                            Icons.arrow_back_ios_new,
-                            color: Colors.black87,
-                          ),
-                          onPressed: () => Navigator.pop(context),
-                          tooltip: 'رجوع',
+                    child: SizedBox(
+                      height: 48,
+                      child: Center(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.home_work_outlined,
+                              color: Colors.black87,
+                            ),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'إدارة الشاليه',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
-                        const Spacer(),
-                        const Text(
-                          'إدارة الشاليه',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const Spacer(),
-                        const SizedBox(width: 48),
-                      ],
+                      ),
                     ),
                   ),
 
@@ -227,56 +569,27 @@ class _BusinessManagementScreenState extends State<BusinessManagementScreen> {
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
-                        vertical: 20,
+                        vertical: 14,
                       ),
                       child: Form(
                         key: _formKey,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            // كارد رفع فيديو
+                            // بطاقة الفيديو
                             _VideoCard(
                               pink: _pink,
                               cyan: _cyan,
                               fileName: _videoFileName,
-                              onPick: () {
-                                setState(
-                                  () => _videoFileName = 'chalet_video.mp4',
-                                ); // mock
-                              },
-                              onRemove: () =>
-                                  setState(() => _videoFileName = null),
+                              onPick: _pickVideo,
+                              onRemove: _removeVideo,
+                              onUpload: _uploadVideoToStorage,
+                              uploading: _uploading,
+                              progress: _uploadProgress,
+                              uploaded: _videoDownloadUrl != null,
                             ),
-                            const SizedBox(height: 16),
 
-                            // اسم الشاليه
-                            TextFormField(
-                              controller: _name,
-                              decoration: _input(
-                                'اسم الشاليه',
-                                const Icon(Icons.home_work),
-                              ),
-                              validator: (v) => (v == null || v.trim().isEmpty)
-                                  ? 'أدخل اسم الشاليه'
-                                  : null,
-                            ),
-                            const SizedBox(height: 12),
-
-                            // الموقع
-                            TextFormField(
-                              controller: _location,
-                              decoration: _input(
-                                'الموقع (المدينة/المنطقة/الشارع)',
-                                const Icon(Icons.location_on),
-                              ),
-                              validator: (v) =>
-                                  (v == null || v.trim().length < 3)
-                                  ? 'أدخل موقعًا صحيحًا'
-                                  : null,
-                            ),
-                            const SizedBox(height: 12),
-
-                            // سعر الحجز
+                            const SizedBox(height: 18),
                             TextFormField(
                               controller: _price,
                               keyboardType: TextInputType.number,
@@ -284,31 +597,65 @@ class _BusinessManagementScreenState extends State<BusinessManagementScreen> {
                                 'سعر الحجز (₪)',
                                 const Icon(Icons.attach_money),
                               ),
-                              validator: (v) {
-                                final s = v?.trim() ?? '';
-                                if (s.isEmpty) return 'أدخل سعر الحجز';
-                                final n = num.tryParse(s);
-                                return (n == null || n <= 0)
-                                    ? 'أدخل رقمًا صحيحًا'
-                                    : null;
-                              },
                             ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 8),
 
-                            // وصف الشاليه
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: ElevatedButton.icon(
+                                onPressed: _savingPrice ? null : _savePrice,
+                                icon: _savingPrice
+                                    ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                                    : const Icon(Icons.cloud_upload),
+                                label: Text(_savingPrice ? 'جاري الحفظ...' : 'حفظ السعر'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: _cyan,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+
                             TextFormField(
                               controller: _description,
                               decoration: _input(
                                 'وصف الشاليه (عدد الغرف، المرافق…)',
-                                const Icon(Icons.description_rounded),
+                                const Icon(Icons.description),
                               ),
                               minLines: 3,
                               maxLines: 6,
-                              maxLength: 500,
                             ),
-                            const SizedBox(height: 18),
+                            const SizedBox(height: 8),
 
-                            // التقويم الشهري
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: ElevatedButton.icon(
+                                onPressed: _savingDescription ? null : _saveDescription,
+                                icon: _savingDescription
+                                    ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                                    : const Icon(Icons.cloud_upload),
+                                label: Text(_savingDescription ? 'جاري الحفظ...' : 'حفظ الوصف'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: _pink,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+
+                            // التقويم
                             _MonthCalendar(
                               month: _visibleMonth,
                               bookedMap: _booked,
@@ -319,9 +666,8 @@ class _BusinessManagementScreenState extends State<BusinessManagementScreen> {
                               dayLabel: _dayLabel,
                             ),
 
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 20),
 
-                            // أزرار سريعة + أسطورة
                             Wrap(
                               alignment: WrapAlignment.center,
                               spacing: 10,
@@ -356,25 +702,25 @@ class _BusinessManagementScreenState extends State<BusinessManagementScreen> {
 
                             const SizedBox(height: 24),
 
-                            // زر حفظ
                             SizedBox(
-                              height: 50,
+                              height: 52,
                               child: ElevatedButton(
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: _pink,
                                   foregroundColor: Colors.white,
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
+                                    borderRadius: BorderRadius.circular(14),
                                   ),
                                   elevation: 0,
                                 ),
-                                onPressed: _save,
-                                child: const Text(
-                                  'حفظ البيانات',
-                                  style: TextStyle(fontSize: 16),
+                                onPressed: _savingCalendar ? null : _saveCalendar,
+                                child: Text(
+                                  _savingCalendar ? 'جاري حفظ التقويم...' : 'حفظ التقويم',
+                                  style: const TextStyle(fontSize: 16),
                                 ),
                               ),
                             ),
+                            const SizedBox(height: 16),
                           ],
                         ),
                       ),
@@ -389,7 +735,8 @@ class _BusinessManagementScreenState extends State<BusinessManagementScreen> {
     );
   }
 
-  // ديكورات
+  // ---------------------- HELPERS ----------------------
+
   static Widget _softBlob(Color c, double size) {
     return Container(
       width: size,
@@ -439,13 +786,18 @@ class _BusinessManagementScreenState extends State<BusinessManagementScreen> {
   }
 }
 
-// بطاقة رفع فيديو (واجهة)
+// ---------------------- VIDEO CARD ----------------------
+
 class _VideoCard extends StatelessWidget {
   final Color pink;
   final Color cyan;
   final String? fileName;
   final VoidCallback onPick;
   final VoidCallback onRemove;
+  final VoidCallback onUpload;
+  final bool uploading;
+  final double progress;
+  final bool uploaded;
 
   const _VideoCard({
     required this.pink,
@@ -453,26 +805,40 @@ class _VideoCard extends StatelessWidget {
     required this.fileName,
     required this.onPick,
     required this.onRemove,
+    required this.onUpload,
+    required this.uploading,
+    required this.progress,
+    required this.uploaded,
   });
 
   @override
   Widget build(BuildContext context) {
+    final hasVideo = fileName != null;
+
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.black.withOpacity(.08)),
-        boxShadow: const [
+        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.white,
+            pink.withOpacity(0.04),
+          ],
+        ),
+        boxShadow: [
           BoxShadow(
-            blurRadius: 10,
-            color: Colors.black12,
-            offset: Offset(0, 4),
+            color: Colors.black.withOpacity(.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Row(
         children: [
+          // avatar circle
           Container(
             width: 62,
             height: 62,
@@ -484,49 +850,134 @@ class _VideoCard extends StatelessWidget {
                 end: Alignment.bottomRight,
               ),
             ),
-            child: const Icon(Icons.videocam_rounded, color: Colors.white),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              fileName ?? 'ارفع فيديو للشاليه (MP4/Mov)…',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: fileName == null ? Colors.black54 : Colors.black87,
-                fontWeight: FontWeight.w600,
-              ),
+            child: const Icon(
+              Icons.videocam_rounded,
+              color: Colors.white,
+              size: 30,
             ),
           ),
+          const SizedBox(width: 14),
+
+          // text + progress
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  fileName ?? 'ارفع فيديو للشاليه من المعرض',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: fileName == null ? Colors.black54 : Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'الصيغ المدعومة: MP4 / MOV',
+                  style: TextStyle(
+                    color: Colors.grey.shade600,
+                    fontSize: 12,
+                  ),
+                ),
+                if (uploading) ...[
+                  const SizedBox(height: 6),
+                  LinearProgressIndicator(
+                    value: progress == 0 ? null : progress,
+                    minHeight: 4,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'جاري الرفع ${(progress * 100).toStringAsFixed(0)}%',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                ] else if (uploaded) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    children: const [
+                      Icon(Icons.check_circle, color: Colors.green, size: 16),
+                      SizedBox(width: 4),
+                      Text(
+                        'تم رفع الفيديو',
+                        style: TextStyle(fontSize: 12, color: Colors.green),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+
           const SizedBox(width: 8),
+
+          // remove icon
           if (fileName != null)
             IconButton(
-              tooltip: 'إزالة',
+              tooltip: 'إزالة الفيديو',
               icon: const Icon(Icons.close_rounded),
-              onPressed: onRemove,
+              onPressed: uploading ? null : onRemove,
             ),
-          ElevatedButton(
-            onPressed: onPick,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: pink,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+
+          // pick / upload buttons stacked vertically
+          Column(
+            children: [
+              ElevatedButton(
+                onPressed: uploading ? null : onPick,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: pink,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(fileName == null ? 'اختيار' : 'تغيير'),
               ),
-              elevation: 0,
-            ),
-            child: Text(fileName == null ? 'رفع' : 'تغيير'),
+              const SizedBox(height: 6),
+              ElevatedButton(
+                onPressed:
+                (fileName == null || uploading || uploaded) ? null : onUpload,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: uploaded ? Colors.green : cyan,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(
+                  uploaded
+                      ? 'مرفوع'
+                      : (uploading ? 'جاري الرفع' : 'رفع للتخزين'),
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ),
+            ],
           ),
         ],
       ),
+
     );
   }
 }
 
-// ==== تقويم شهري مخصص ====
+// ---------------------- CALENDAR ----------------------
+
 class _MonthCalendar extends StatelessWidget {
   final DateTime month;
-  final Map<String, bool> bookedMap; // true=محجوز | false=متاح
+  final Map<String, bool> bookedMap;
   final VoidCallback onPrev;
   final VoidCallback onNext;
   final void Function(DateTime day) onToggle;
@@ -545,12 +996,11 @@ class _MonthCalendar extends StatelessWidget {
 
   int _daysInMonth(DateTime m) => DateTime(m.year, m.month + 1, 0).day;
 
-  // تحويل weekday لبدء الأسبوع بالسبت
   int _satLeadingBlanks(DateTime m) {
-    final w = DateTime(m.year, m.month, 1).weekday; // Mon=1..Sun=7
-    if (w == 6) return 0; // Saturday
-    if (w == 7) return 1; // Sunday
-    return w + 1; // Mon->2 ... Fri->6
+    final w = DateTime(m.year, m.month, 1).weekday;
+    if (w == 6) return 0;
+    if (w == 7) return 1;
+    return w + 1;
   }
 
   @override
@@ -560,11 +1010,10 @@ class _MonthCalendar extends StatelessWidget {
     final cells = leading + daysCount;
     final rows = (cells / 7).ceil();
 
-    final headerStyle = Theme.of(
-      context,
-    ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800);
-
-    // سقف بسيط لتكبير النص حتى لا تنكسر عناوين الأيام
+    final headerStyle =
+    Theme.of(context).textTheme.titleMedium?.copyWith(
+      fontWeight: FontWeight.w800,
+    );
     final capped = MediaQuery.of(context).copyWith(
       textScaleFactor: MediaQuery.textScaleFactorOf(context).clamp(1.0, 1.15),
     );
@@ -585,7 +1034,6 @@ class _MonthCalendar extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // شريط الشهر ← →
           Row(
             children: [
               IconButton(
@@ -608,7 +1056,6 @@ class _MonthCalendar extends StatelessWidget {
           ),
           const SizedBox(height: 6),
 
-          // عناوين الأيام (السبت أولاً)
           MediaQuery(
             data: capped,
             child: Row(
@@ -625,7 +1072,6 @@ class _MonthCalendar extends StatelessWidget {
           ),
           const SizedBox(height: 6),
 
-          // الشبكة
           Column(
             children: List.generate(rows, (r) {
               return Row(
@@ -704,6 +1150,8 @@ class _MonthCalendar extends StatelessWidget {
   }
 }
 
+// ---------------------- DAY HEADER ----------------------
+
 class _DayHeader extends StatelessWidget {
   final String title;
   const _DayHeader(this.title);
@@ -719,20 +1167,18 @@ class _DayHeader extends StatelessWidget {
           color: const Color(0xFFF7F7F9),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: const _NoWrapText(),
+        child: _NoWrapText(title: title),
       ),
     );
   }
 }
 
-// نص مانع للّف مع تصغير تلقائي
 class _NoWrapText extends StatelessWidget {
-  const _NoWrapText({super.key});
+  final String title;
+  const _NoWrapText({super.key, required this.title});
 
   @override
   Widget build(BuildContext context) {
-    final parent = context.findAncestorWidgetOfExactType<_DayHeader>();
-    final title = (parent is _DayHeader) ? parent.title : '';
     return FittedBox(
       fit: BoxFit.scaleDown,
       child: Text(
@@ -746,7 +1192,8 @@ class _NoWrapText extends StatelessWidget {
   }
 }
 
-// ==== Clippers للديكور ====
+// ---------------------- CLIPPERS ----------------------
+
 class _TopWaveClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {

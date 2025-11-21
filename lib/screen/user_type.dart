@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../screen/home/user_home_screen.dart'; // شاشة المستخدم العادي
+import '../features/home/data/chalet_ad_model.dart';
+import '../screen/home_screen.dart';
 import '../screen/business_management_screen.dart'; // شاشة مالك الشاليه
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -58,7 +59,7 @@ class _UserTypeState extends State<UserType> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => const BusinessManagementScreen(),
+            builder: (_) =>  BusinessManagementScreen(),
           ),
         );
       } else {
@@ -66,7 +67,7 @@ class _UserTypeState extends State<UserType> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => const UserHomeScreen(),
+            builder: (_) => const HomeScreen(),
           ),
         );
       }
